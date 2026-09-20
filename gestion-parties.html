@@ -894,7 +894,12 @@
   function escapeHtml(txt){
     const d = document.createElement('div');
     d.textContent = txt;
-    return d.innerHTML;
+    // La conversion textContent -> innerHTML n'echappe pas les guillemets (ils ne
+    // posent pas de probleme dans du texte normal) : on le fait nous-memes en plus,
+    // car ce texte est aussi utilise a l'interieur d'attributs HTML entre guillemets
+    // (ex: value="${escapeHtml(...)}"), ou un guillemet non echappe permettrait de
+    // sortir de l'attribut et d'injecter du HTML/JS arbitraire.
+    return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function render(){
