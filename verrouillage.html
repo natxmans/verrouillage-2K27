@@ -176,12 +176,44 @@
     app.innerHTML = `<div class="erreur">${escapeHtml(message)}</div>`;
   }
 
+  // Alerte sonore au moment ou l'ecran passe en pause : sur Switch/PS4 il n'y a ni
+  // blocage clavier ni suspension du jeu, seulement cet affichage — si personne ne
+  // regarde l'ecran au bon moment, le passage en pause peut passer inaperçu. Un bip
+  // attire l'attention de la personne qui surveille ce poste/projecteur.
+  let contexteAudio = null;
+  function jouerBip(){
+    try{
+      if (!contexteAudio) contexteAudio = new (window.AudioContext || window.webkitAudioContext)();
+      if (contexteAudio.state === 'suspended') contexteAudio.resume();
+      [0, 0.18].forEach((decalage, i) => {
+        const osc = contexteAudio.createOscillator();
+        const gain = contexteAudio.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = i === 0 ? 880 : 1108;
+        const depart = contexteAudio.currentTime + decalage;
+        gain.gain.setValueAtTime(0.001, depart);
+        gain.gain.exponentialRampToValueAtTime(0.35, depart + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, depart + 0.16);
+        osc.connect(gain).connect(contexteAudio.destination);
+        osc.start(depart);
+        osc.stop(depart + 0.16);
+      });
+    }catch(e){
+      // Navigateur qui bloque l'audio sans interaction prealable : tant pis, le
+      // bip est un bonus, l'affichage visuel reste la source d'info principale.
+    }
+  }
+
+  let etaitVerrouille = false;
+
   function render(poste){
     if (!poste){
       afficherErreur(`Poste "${nomPoste}" introuvable. Vérifie l'orthographe dans le lien (?poste=...) — elle doit correspondre exactement au nom du poste dans l'outil de gestion.`);
       return;
     }
-    if (poste.statut === 'pause' || poste.pauseRaison === 'changement'){
+    const verrouille = poste.statut === 'pause' || poste.pauseRaison === 'changement';
+    if (verrouille){
+      if (!etaitVerrouille) jouerBip();
       const sousTitre = poste.pauseRaison === 'changement'
         ? 'Changement de jeu en cours — merci de patienter'
         : 'Annonce en cours — merci de patienter';
@@ -202,6 +234,7 @@
         </div>
       `;
     }
+    etaitVerrouille = verrouille;
   }
 
   if (!nomPoste){
@@ -229,6 +262,10 @@
 
   document.getElementById('btn-plein-ecran').addEventListener('click', () => {
     document.documentElement.requestFullscreen().catch(() => {});
+    // Profite de ce premier clic (interaction utilisateur) pour debloquer l'audio :
+    // les navigateurs interdisent de jouer un son avant toute interaction manuelle.
+    if (!contexteAudio) contexteAudio = new (window.AudioContext || window.webkitAudioContext)();
+    if (contexteAudio.state === 'suspended') contexteAudio.resume();
   });
 })();
 </script>

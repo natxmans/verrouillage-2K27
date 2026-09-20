@@ -732,8 +732,14 @@
   let fileTerminerGroupe = [];
 
   function lancerToutTerminer(){
-    fileTerminerGroupe = etat.postes.filter(p => p.statut === 'encours' || p.statut === 'pause').map(p => p.id);
-    if (fileTerminerGroupe.length === 0) return;
+    const idsActifs = etat.postes.filter(p => p.statut === 'encours' || p.statut === 'pause').map(p => p.id);
+    if (idsActifs.length === 0) return;
+    const nombre = idsActifs.length;
+    const texte = nombre > 1
+      ? `Terminer les ${nombre} parties en cours et verrouiller ces postes le temps de les reconfigurer ?`
+      : 'Terminer cette partie et verrouiller ce poste le temps de le reconfigurer ?';
+    if (!confirm(texte)) return;
+    fileTerminerGroupe = idsActifs;
     traiterProchainTerminerGroupe();
   }
 
