@@ -198,6 +198,44 @@
     gap: 18px;
   }
 
+  #section-ecrans.cache{ display: none; }
+  .petit-texte{
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 500;
+  }
+  .grille-ecrans{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px;
+  }
+  .carte-ecran{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .carte-ecran .nom-ecran{
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    color: var(--neon-cyan);
+  }
+  .carte-ecran img{
+    width: 100%;
+    border-radius: 8px;
+    background: var(--bg-alt);
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+  }
+  .carte-ecran .etat-ecran{
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
   .poste{
     background: var(--card);
     border: 1px solid var(--border);
@@ -400,6 +438,7 @@
     <span id="badge-connexion" class="badge-connexion">● Chargement…</span>
     <button id="btn-pause-annonce" class="pause-globale" title="Met en pause tous les postes en cours pour une annonce">⏸ Pause annonce</button>
     <button id="btn-changement-jeu" class="pause-globale changement" title="Termine toutes les parties en cours et verrouille les postes pendant le changement">🏁 Tout terminer</button>
+    <button id="btn-ecrans" title="Voir un aperçu des écrans des postes en cours de partie">🖥 Écrans</button>
     <button id="btn-export" title="Sauvegarder les données dans un fichier">⬇ Exporter</button>
     <button id="btn-import" title="Recharger des données depuis un fichier">⬆ Importer</button>
     <input type="file" id="fichier-import" accept="application/json">
@@ -410,6 +449,11 @@
   <section>
     <h2>Postes de jeu <span class="compte" id="compte-postes"></span></h2>
     <div class="grille-postes" id="grille-postes"></div>
+  </section>
+
+  <section id="section-ecrans" class="cache">
+    <h2>Écrans en direct <span class="petit-texte">(actualisé toutes les 10s, uniquement pendant une partie)</span></h2>
+    <div class="grille-ecrans" id="grille-ecrans"></div>
   </section>
 
   <section>
@@ -958,10 +1002,95 @@
 
     const btnChangement = document.getElementById('btn-changement-jeu');
     btnChangement.disabled = !etat.postes.some(p => p.statut === 'encours' || p.statut === 'pause');
+
+    if (ecransOuverts){
+      abonnerEcrans();
+      renderEcrans();
+    }
+  }
+
+  // ---- Ecrans en direct (facon Veyon) : aperçu envoyé par verrou_poste.py toutes
+  // les 10s pendant une partie active, stocké a part (festival2k27_captures) pour
+  // ne pas alourdir la synchronisation de l'etat principal. Les ecouteurs Firebase
+  // ne sont attaches que pendant que ce panneau est ouvert, pour economiser le
+  // quota gratuit quand personne ne regarde.
+  let ecransOuverts = false;
+  let refsEcrans = {};
+  let captures = {};
+
+  function ouvrirEcrans(){
+    if (!FIREBASE_ACTIF){
+      alert("L'aperçu des écrans a besoin du mode connecté (Firebase), indisponible en mode solo.");
+      return;
+    }
+    ecransOuverts = true;
+    document.getElementById('section-ecrans').classList.remove('cache');
+    abonnerEcrans();
+    renderEcrans();
+  }
+
+  function fermerEcrans(){
+    ecransOuverts = false;
+    document.getElementById('section-ecrans').classList.add('cache');
+    Object.values(refsEcrans).forEach(ref => ref.off());
+    refsEcrans = {};
+  }
+
+  function abonnerEcrans(){
+    const nomsActuels = new Set(etat.postes.map(p => p.nom));
+    Object.keys(refsEcrans).forEach(nom => {
+      if (!nomsActuels.has(nom)){
+        refsEcrans[nom].off();
+        delete refsEcrans[nom];
+        delete captures[nom];
+      }
+    });
+    etat.postes.forEach(poste => {
+      if (refsEcrans[poste.nom]) return;
+      const ref = firebase.database().ref('festival2k27_captures/' + poste.nom);
+      ref.on('value', snapshot => {
+        captures[poste.nom] = snapshot.val();
+        renderEcrans();
+      });
+      refsEcrans[poste.nom] = ref;
+    });
+  }
+
+  function renderEcrans(){
+    if (!ecransOuverts) return;
+    const grille = document.getElementById('grille-ecrans');
+    grille.innerHTML = '';
+    etat.postes.forEach(poste => {
+      const capture = captures[poste.nom];
+      const div = document.createElement('div');
+      div.className = 'carte-ecran';
+      if (poste.statut !== 'encours'){
+        div.innerHTML = `
+          <div class="nom-ecran">${escapeHtml(poste.nom)}</div>
+          <div class="etat-ecran">Aucune partie en cours</div>
+        `;
+      } else if (!capture || !capture.image || !String(capture.image).startsWith('data:image/')){
+        div.innerHTML = `
+          <div class="nom-ecran">${escapeHtml(poste.nom)}</div>
+          <div class="etat-ecran">En attente du premier aperçu…</div>
+        `;
+      } else {
+        const secondes = Math.max(0, Math.round((Date.now() - capture.maj) / 1000));
+        div.innerHTML = `
+          <div class="nom-ecran">${escapeHtml(poste.nom)}</div>
+          <img src="${escapeHtml(capture.image)}" alt="Aperçu écran">
+          <div class="etat-ecran">Actualisé il y a ${secondes}s</div>
+        `;
+      }
+      grille.appendChild(div);
+    });
   }
 
   document.getElementById('btn-pause-annonce').addEventListener('click', togglePauseGlobale);
   document.getElementById('btn-changement-jeu').addEventListener('click', lancerToutTerminer);
+  document.getElementById('btn-ecrans').addEventListener('click', () => {
+    if (ecransOuverts) fermerEcrans(); else ouvrirEcrans();
+  });
   document.getElementById('btn-export').addEventListener('click', exporterDonnees);
   document.getElementById('btn-import').addEventListener('click', () => document.getElementById('fichier-import').click());
   document.getElementById('fichier-import').addEventListener('change', e => {
@@ -999,6 +1128,10 @@
       if (poste) el.textContent = formatDuree(elapsedPoste(poste));
     });
   }, 1000);
+
+  setInterval(() => {
+    if (ecransOuverts) renderEcrans();
+  }, 3000);
 
   initEtat();
 })();
