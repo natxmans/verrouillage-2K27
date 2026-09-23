@@ -198,7 +198,6 @@
     gap: 18px;
   }
 
-  #section-ecrans.cache{ display: none; }
   .petit-texte{
     font-size: 0.8rem;
     color: var(--text-dim);
@@ -438,7 +437,6 @@
     <span id="badge-connexion" class="badge-connexion">● Chargement…</span>
     <button id="btn-pause-annonce" class="pause-globale" title="Met en pause tous les postes en cours pour une annonce">⏸ Pause annonce</button>
     <button id="btn-changement-jeu" class="pause-globale changement" title="Termine toutes les parties en cours et verrouille les postes pendant le changement">🏁 Tout terminer</button>
-    <button id="btn-ecrans" title="Voir un aperçu des écrans des postes en cours de partie">🖥 Écrans</button>
     <button id="btn-export" title="Sauvegarder les données dans un fichier">⬇ Exporter</button>
     <button id="btn-import" title="Recharger des données depuis un fichier">⬆ Importer</button>
     <input type="file" id="fichier-import" accept="application/json">
@@ -451,7 +449,7 @@
     <div class="grille-postes" id="grille-postes"></div>
   </section>
 
-  <section id="section-ecrans" class="cache">
+  <section id="section-ecrans">
     <h2>Écrans en direct <span class="petit-texte">(actualisé toutes les 10s, uniquement pendant une partie)</span></h2>
     <div class="grille-ecrans" id="grille-ecrans"></div>
   </section>
@@ -661,9 +659,9 @@
     posteEnAttenteFin = id;
     const poste = trouverPoste(id);
     const titre = document.getElementById('modale-titre');
-    titre.textContent = restantGroupe
+    titre.textContent = restantGroupe > 1
       ? `Terminer ${poste ? poste.nom : ''} (reste ${restantGroupe})`
-      : 'Terminer la partie';
+      : `Terminer ${poste ? poste.nom : 'la partie'}`;
     document.getElementById('modale-resultat').value = '';
     document.getElementById('overlay-terminer').classList.remove('cache');
     document.getElementById('modale-resultat').focus();
@@ -673,31 +671,6 @@
     posteEnAttenteFin = null;
     fileTerminerGroupe = [];
     document.getElementById('overlay-terminer').classList.add('cache');
-  }
-
-  function terminerPartie(id, resultat){
-    const poste = trouverPoste(id);
-    if (!poste) return;
-    const dureeMs = elapsedPoste(poste);
-    etat.historique.unshift({
-      id: idUnique('hist'),
-      poste: poste.nom,
-      jeu: poste.jeu,
-      joueurs: poste.joueurs,
-      fin: Date.now(),
-      dureeMs: dureeMs,
-      resultat: resultat.trim() || '—'
-    });
-    poste.statut = 'libre';
-    poste.jeu = '';
-    poste.joueurs = '';
-    poste.debut = null;
-    poste.pausedMs = 0;
-    poste.pauseDepuis = null;
-    poste.pauseRaison = null;
-    etat.globalPausedIds = etat.globalPausedIds.filter(pid => pid !== id);
-    sauvegarder();
-    render();
   }
 
   function supprimerHistorique(id){
@@ -935,7 +908,10 @@
       });
     } else {
       div.querySelector('.btn-pause').addEventListener('click', () => togglePause(poste.id));
-      div.querySelector('.btn-terminer').addEventListener('click', () => ouvrirModaleFin(poste.id));
+      div.querySelector('.btn-terminer').addEventListener('click', () => {
+        fileTerminerGroupe = [poste.id];
+        traiterProchainTerminerGroupe();
+      });
     }
 
     return div;
@@ -1003,7 +979,7 @@
     const btnChangement = document.getElementById('btn-changement-jeu');
     btnChangement.disabled = !etat.postes.some(p => p.statut === 'encours' || p.statut === 'pause');
 
-    if (ecransOuverts){
+    if (FIREBASE_ACTIF){
       abonnerEcrans();
       renderEcrans();
     }
@@ -1011,30 +987,12 @@
 
   // ---- Ecrans en direct (facon Veyon) : aperçu envoyé par verrou_poste.py toutes
   // les 10s pendant une partie active, stocké a part (festival2k27_captures) pour
-  // ne pas alourdir la synchronisation de l'etat principal. Les ecouteurs Firebase
-  // ne sont attaches que pendant que ce panneau est ouvert, pour economiser le
-  // quota gratuit quand personne ne regarde.
-  let ecransOuverts = false;
+  // ne pas alourdir la synchronisation de l'etat principal. Toujours actif (pas de
+  // bouton a cliquer) : les ecouteurs Firebase sont attaches automatiquement des
+  // qu'un poste existe. L'economie de quota vient plutot du cote verrou_poste.py,
+  // qui n'envoie une capture que pendant une partie active (voir plus haut).
   let refsEcrans = {};
   let captures = {};
-
-  function ouvrirEcrans(){
-    if (!FIREBASE_ACTIF){
-      alert("L'aperçu des écrans a besoin du mode connecté (Firebase), indisponible en mode solo.");
-      return;
-    }
-    ecransOuverts = true;
-    document.getElementById('section-ecrans').classList.remove('cache');
-    abonnerEcrans();
-    renderEcrans();
-  }
-
-  function fermerEcrans(){
-    ecransOuverts = false;
-    document.getElementById('section-ecrans').classList.add('cache');
-    Object.values(refsEcrans).forEach(ref => ref.off());
-    refsEcrans = {};
-  }
 
   function abonnerEcrans(){
     const nomsActuels = new Set(etat.postes.map(p => p.nom));
@@ -1057,7 +1015,6 @@
   }
 
   function renderEcrans(){
-    if (!ecransOuverts) return;
     const grille = document.getElementById('grille-ecrans');
     grille.innerHTML = '';
     etat.postes.forEach(poste => {
@@ -1088,9 +1045,6 @@
 
   document.getElementById('btn-pause-annonce').addEventListener('click', togglePauseGlobale);
   document.getElementById('btn-changement-jeu').addEventListener('click', lancerToutTerminer);
-  document.getElementById('btn-ecrans').addEventListener('click', () => {
-    if (ecransOuverts) fermerEcrans(); else ouvrirEcrans();
-  });
   document.getElementById('btn-export').addEventListener('click', exporterDonnees);
   document.getElementById('btn-import').addEventListener('click', () => document.getElementById('fichier-import').click());
   document.getElementById('fichier-import').addEventListener('change', e => {
@@ -1100,18 +1054,14 @@
   document.getElementById('modale-annuler').addEventListener('click', fermerModaleFin);
   document.getElementById('modale-valider').addEventListener('click', () => {
     const resultat = document.getElementById('modale-resultat').value;
-    if (posteEnAttenteFin){
+    if (posteEnAttenteFin && fileTerminerGroupe.length > 0){
+      terminerPourChangement(posteEnAttenteFin, resultat);
+      fileTerminerGroupe.shift();
+      sauvegarder();
+      render();
       if (fileTerminerGroupe.length > 0){
-        terminerPourChangement(posteEnAttenteFin, resultat);
-        fileTerminerGroupe.shift();
-        sauvegarder();
-        render();
-        if (fileTerminerGroupe.length > 0){
-          traiterProchainTerminerGroupe();
-          return;
-        }
-      } else {
-        terminerPartie(posteEnAttenteFin, resultat);
+        traiterProchainTerminerGroupe();
+        return;
       }
     }
     fermerModaleFin();
@@ -1130,7 +1080,7 @@
   }, 1000);
 
   setInterval(() => {
-    if (ecransOuverts) renderEcrans();
+    if (etat) renderEcrans();
   }, 3000);
 
   initEtat();
