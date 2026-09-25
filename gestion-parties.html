@@ -476,10 +476,7 @@
 <div class="overlay cache" id="overlay-terminer">
   <div class="modale">
     <h3 id="modale-titre">Terminer la partie</h3>
-    <div class="poste-form">
-      <label for="modale-resultat">Résultat / gagnant</label>
-      <input type="text" id="modale-resultat" placeholder="Ex : Alice gagne 3-1">
-    </div>
+    <div class="poste-form" id="modale-champs"></div>
     <div class="modale-actions">
       <button id="modale-annuler">Annuler</button>
       <button id="modale-valider" class="primary">Valider</button>
@@ -497,11 +494,54 @@
   // uniquement les jeux PC, car cet outil ne gere/verrouille que les postes PC
   // (verrou_poste.py). Les autres jeux (Switch, PS4, scene, smartphone) se saisissent
   // via "Autre" en texte libre sur leur poste respectif.
-  const JEUX_DISPONIBLES = ['Fortnite', 'Valorant'];
+  const JEUX_DISPONIBLES = ['World of Padman', 'Trackmania', 'Fortnite', 'Valorant'];
   // PEGI confirmes dans le plan (les autres jeux sont encore en cours d'evaluation par
   // l'equipe + le SAJ, voir memoire du projet) : affiche juste un rappel visuel, ne
   // remplace pas la verification du badge par l'animateur de chaque espace.
   const PEGI_PAR_JEU = { 'Fortnite': 12, 'Valorant': 16 };
+  // Champs de fin de partie adaptes au type de chaque jeu PC (2026-09-25, demande
+  // explicite "modifie le systeme de qui gagne en fonction du jeu"). Les jeux hors
+  // de cette liste (Switch/PS4/scene/smartphone saisis en "Autre") gardent le champ
+  // libre d'origine, inchange.
+  const CHAMPS_RESULTAT_PAR_JEU = {
+    'World of Padman': [
+      { id: 'gagnant', label: 'Gagnant', type: 'text', placeholder: 'Ex : Alice' },
+      { id: 'frags', label: 'Frags', type: 'number', placeholder: 'Ex : 12' }
+    ],
+    'Trackmania': [
+      { id: 'gagnant', label: 'Gagnant', type: 'text', placeholder: 'Ex : Bob' },
+      { id: 'temps', label: 'Temps', type: 'text', placeholder: 'Ex : 1:32.450' }
+    ],
+    'Fortnite': [
+      { id: 'gagnant', label: 'Gagnant', type: 'text', placeholder: 'Ex : Chloé' },
+      { id: 'classement', label: 'Classement (1 = Victoire Royale)', type: 'number', placeholder: 'Ex : 1' }
+    ],
+    'Valorant': [
+      { id: 'gagnant', label: 'Équipe gagnante', type: 'text', placeholder: 'Ex : Team Alice' },
+      { id: 'score', label: 'Score de manches', type: 'text', placeholder: 'Ex : 13-7' }
+    ]
+  };
+  function construireResultat(jeu, valeurs){
+    const gagnant = (valeurs.gagnant || '').trim();
+    if (!gagnant) return '—';
+    if (jeu === 'World of Padman'){
+      const frags = (valeurs.frags || '').trim();
+      return `${gagnant} gagne${frags ? ` (${frags} frags)` : ''}`;
+    }
+    if (jeu === 'Trackmania'){
+      const temps = (valeurs.temps || '').trim();
+      return `${gagnant} gagne${temps ? ` (${temps})` : ''}`;
+    }
+    if (jeu === 'Fortnite'){
+      const place = (valeurs.classement || '').trim();
+      return (!place || place === '1') ? `${gagnant} — Victoire Royale` : `${gagnant} — ${place}e place`;
+    }
+    if (jeu === 'Valorant'){
+      const score = (valeurs.score || '').trim();
+      return `${gagnant} gagne${score ? ` ${score}` : ''}`;
+    }
+    return gagnant;
+  }
 
   // ↓↓↓ Pour connecter plusieurs appareils entre eux : crée un projet Firebase gratuit
   // (console.firebase.google.com), active "Realtime Database", et colle ici la config
@@ -681,9 +721,20 @@
     titre.textContent = restantGroupe > 1
       ? `Terminer ${poste ? poste.nom : ''} (reste ${restantGroupe})`
       : `Terminer ${poste ? poste.nom : 'la partie'}`;
-    document.getElementById('modale-resultat').value = '';
+    const champs = document.getElementById('modale-champs');
+    const defs = poste ? CHAMPS_RESULTAT_PAR_JEU[poste.jeu] : null;
+    if (defs){
+      champs.innerHTML = defs.map(c =>
+        `<label for="champ-${c.id}">${escapeHtml(c.label)}</label>
+         <input type="${c.type}" id="champ-${c.id}" placeholder="${escapeHtml(c.placeholder)}">`
+      ).join('');
+    } else {
+      champs.innerHTML = `<label for="champ-resultat">Résultat / gagnant</label>
+        <input type="text" id="champ-resultat" placeholder="Ex : Alice gagne 3-1">`;
+    }
     document.getElementById('overlay-terminer').classList.remove('cache');
-    document.getElementById('modale-resultat').focus();
+    const premierChamp = champs.querySelector('input');
+    if (premierChamp) premierChamp.focus();
   }
 
   function fermerModaleFin(){
@@ -1076,7 +1127,17 @@
   });
   document.getElementById('modale-annuler').addEventListener('click', fermerModaleFin);
   document.getElementById('modale-valider').addEventListener('click', () => {
-    const resultat = document.getElementById('modale-resultat').value;
+    const posteFin = trouverPoste(posteEnAttenteFin);
+    const defs = posteFin ? CHAMPS_RESULTAT_PAR_JEU[posteFin.jeu] : null;
+    let resultat;
+    if (defs){
+      const valeurs = {};
+      defs.forEach(c => { valeurs[c.id] = document.getElementById(`champ-${c.id}`).value; });
+      resultat = construireResultat(posteFin.jeu, valeurs);
+    } else {
+      const champResultat = document.getElementById('champ-resultat');
+      resultat = champResultat ? champResultat.value : '';
+    }
     if (posteEnAttenteFin && fileTerminerGroupe.length > 0){
       terminerPourChangement(posteEnAttenteFin, resultat);
       fileTerminerGroupe.shift();
@@ -1089,7 +1150,7 @@
     }
     fermerModaleFin();
   });
-  document.getElementById('modale-resultat').addEventListener('keydown', e => {
+  document.getElementById('modale-champs').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('modale-valider').click();
   });
 
