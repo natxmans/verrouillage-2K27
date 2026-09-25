@@ -426,6 +426,7 @@
   .modale-actions{ display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
   .modale-ecran{ max-width: 720px; }
   .modale-ecran img{ width: 100%; border-radius: 10px; background: var(--bg-alt); }
+  .choix-jeu{ width: 100%; text-align: left; }
 
   footer{
     text-align: center;
@@ -450,7 +451,7 @@
   <div class="header-actions">
     <span id="badge-connexion" class="badge-connexion">● Chargement…</span>
     <button id="btn-pause-annonce" class="pause-globale" title="Met en pause tous les postes en cours pour une annonce">⏸ Pause annonce</button>
-    <button id="btn-changement-jeu" class="pause-globale changement" title="Termine toutes les parties en cours et verrouille les postes pendant le changement">🏁 Tout terminer</button>
+    <button id="btn-terminer-jeu" class="pause-globale changement" title="Choisis un jeu : termine toutes ses parties en cours et verrouille les postes pendant le changement">🏁 Terminer un jeu</button>
     <button id="btn-export" title="Sauvegarder les données dans un fichier">⬇ Exporter</button>
     <button id="btn-import" title="Recharger des données depuis un fichier">⬆ Importer</button>
     <input type="file" id="fichier-import" accept="application/json">
@@ -483,6 +484,16 @@
     <div class="modale-actions">
       <button id="modale-annuler">Annuler</button>
       <button id="modale-valider" class="primary">Valider</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay cache" id="overlay-choisir-jeu">
+  <div class="modale">
+    <h3>Terminer quel jeu ?</h3>
+    <div class="poste-form" id="liste-jeux-actifs"></div>
+    <div class="modale-actions">
+      <button id="jeu-annuler">Annuler</button>
     </div>
   </div>
 </div>
@@ -826,21 +837,46 @@
     render();
   }
 
-  // "Tout terminer" : demande le resultat de chaque partie active (une modale a la
-  // fois), les cloture dans l'historique, puis remet chaque poste en "libre" (donc
-  // reconfigurable tout de suite sur le site) MAIS garde le PC physique verrouille
-  // ("changement de jeu") jusqu'a ce qu'une nouvelle partie soit demarree dessus.
+  // "Terminer un jeu" : on choisit d'abord quel jeu parmi ceux actuellement joues
+  // (regroupe par la valeur exacte de poste.jeu), puis seuls les postes de ce jeu
+  // demandent leur resultat (une modale a la fois), sont clotures dans l'historique,
+  // puis remis en "libre" (donc reconfigurables tout de suite sur le site) MAIS
+  // gardent le PC physique verrouille ("changement de jeu") jusqu'a ce qu'une
+  // nouvelle partie soit demarree dessus. Remplace l'ancien "Tout terminer" (qui
+  // terminait TOUS les postes actifs sans distinction de jeu).
   let fileTerminerGroupe = [];
 
-  function lancerToutTerminer(){
-    const idsActifs = etat.postes.filter(p => p.statut === 'encours' || p.statut === 'pause').map(p => p.id);
-    if (idsActifs.length === 0) return;
-    const nombre = idsActifs.length;
-    const texte = nombre > 1
-      ? `Terminer les ${nombre} parties en cours et verrouiller ces postes le temps de les reconfigurer ?`
-      : 'Terminer cette partie et verrouiller ce poste le temps de le reconfigurer ?';
+  function lancerTerminerJeu(){
+    const actifs = etat.postes.filter(p => p.statut === 'encours' || p.statut === 'pause');
+    if (actifs.length === 0) return;
+    const parJeu = {};
+    actifs.forEach(p => {
+      const nomJeu = p.jeu || 'Jeu non précisé';
+      (parJeu[nomJeu] = parJeu[nomJeu] || []).push(p.id);
+    });
+    const liste = document.getElementById('liste-jeux-actifs');
+    liste.innerHTML = Object.entries(parJeu).map(([jeu, ids]) => {
+      const libelle = ids.length > 1 ? `${jeu} (${ids.length} postes)` : jeu;
+      return `<button type="button" class="choix-jeu" data-jeu="${escapeHtml(jeu)}">${escapeHtml(libelle)}</button>`;
+    }).join('');
+    document.getElementById('overlay-choisir-jeu').classList.remove('cache');
+  }
+
+  function fermerChoixJeu(){
+    document.getElementById('overlay-choisir-jeu').classList.add('cache');
+  }
+
+  function choisirJeuATerminer(jeu){
+    const ids = etat.postes
+      .filter(p => (p.statut === 'encours' || p.statut === 'pause') && (p.jeu || 'Jeu non précisé') === jeu)
+      .map(p => p.id);
+    fermerChoixJeu();
+    if (ids.length === 0) return;
+    const texte = ids.length > 1
+      ? `Terminer les ${ids.length} parties de ${jeu} en cours et verrouiller ces postes le temps de les reconfigurer ?`
+      : `Terminer cette partie de ${jeu} et verrouiller ce poste le temps de le reconfigurer ?`;
     if (!confirm(texte)) return;
-    fileTerminerGroupe = idsActifs;
+    fileTerminerGroupe = ids;
     traiterProchainTerminerGroupe();
   }
 
@@ -1064,8 +1100,8 @@
     btnPauseAnnonce.classList.toggle('active', etat.globalPauseActive);
     btnPauseAnnonce.disabled = !etat.globalPauseActive && !etat.postes.some(p => p.statut === 'encours');
 
-    const btnChangement = document.getElementById('btn-changement-jeu');
-    btnChangement.disabled = !etat.postes.some(p => p.statut === 'encours' || p.statut === 'pause');
+    const btnTerminerJeu = document.getElementById('btn-terminer-jeu');
+    btnTerminerJeu.disabled = !etat.postes.some(p => p.statut === 'encours' || p.statut === 'pause');
 
     if (FIREBASE_ACTIF){
       abonnerEcrans();
@@ -1163,7 +1199,15 @@
   }
 
   document.getElementById('btn-pause-annonce').addEventListener('click', togglePauseGlobale);
-  document.getElementById('btn-changement-jeu').addEventListener('click', lancerToutTerminer);
+  document.getElementById('btn-terminer-jeu').addEventListener('click', lancerTerminerJeu);
+  document.getElementById('jeu-annuler').addEventListener('click', fermerChoixJeu);
+  document.getElementById('liste-jeux-actifs').addEventListener('click', e => {
+    const btn = e.target.closest('.choix-jeu');
+    if (btn) choisirJeuATerminer(btn.dataset.jeu);
+  });
+  document.getElementById('overlay-choisir-jeu').addEventListener('click', e => {
+    if (e.target.id === 'overlay-choisir-jeu') fermerChoixJeu();
+  });
   document.getElementById('btn-export').addEventListener('click', exporterDonnees);
   document.getElementById('btn-import').addEventListener('click', () => document.getElementById('fichier-import').click());
   document.getElementById('fichier-import').addEventListener('change', e => {
@@ -1205,6 +1249,7 @@
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (!document.getElementById('overlay-ecran-agrandi').classList.contains('cache')) fermerEcranAgrandi();
+    else if (!document.getElementById('overlay-choisir-jeu').classList.contains('cache')) fermerChoixJeu();
     else if (!document.getElementById('overlay-terminer').classList.contains('cache')) fermerModaleFin();
   });
 
