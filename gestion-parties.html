@@ -810,19 +810,21 @@
     sauvegarder();
   }
 
-  function togglePauseGlobale(){
-    if (!etat.globalPauseActive){
-      etat.globalPausedIds = etat.postes.filter(p => p.statut === 'encours').map(p => p.id);
-      etat.globalPausedIds.forEach(id => {
-        const poste = trouverPoste(id);
+  // Bascule pause/reprise appliquee a un objet etat (local ou celui lu par une
+  // transaction Firebase, voir togglePauseGlobale ci-dessous).
+  function appliquerTogglePause(donnees){
+    if (!donnees.globalPauseActive){
+      donnees.globalPausedIds = donnees.postes.filter(p => p.statut === 'encours').map(p => p.id);
+      donnees.globalPausedIds.forEach(id => {
+        const poste = donnees.postes.find(p => p.id === id);
         poste.statut = 'pause';
         poste.pauseDepuis = Date.now();
         poste.pauseRaison = 'annonce';
       });
-      etat.globalPauseActive = true;
+      donnees.globalPauseActive = true;
     } else {
-      etat.globalPausedIds.forEach(id => {
-        const poste = trouverPoste(id);
+      donnees.globalPausedIds.forEach(id => {
+        const poste = donnees.postes.find(p => p.id === id);
         if (poste && poste.statut === 'pause'){
           poste.pausedMs += Date.now() - poste.pauseDepuis;
           poste.pauseDepuis = null;
@@ -830,9 +832,30 @@
           poste.pauseRaison = null;
         }
       });
-      etat.globalPausedIds = [];
-      etat.globalPauseActive = false;
+      donnees.globalPausedIds = [];
+      donnees.globalPauseActive = false;
     }
+  }
+
+  // Plusieurs personnes peuvent appuyer sur "Pause annonce" au meme moment depuis
+  // des appareils differents. Un simple firebaseRef.set(etat) (comme partout ailleurs
+  // dans l'appli) ecraserait betement la version du serveur avec une copie locale
+  // qui peut deja etre perimee de quelques centaines de ms - dans le pire cas, le
+  // deuxieme clic annulerait sans le vouloir l'action du premier, ou effacerait un
+  // changement fait sur un autre poste entre-temps. Pour CE bouton precis (le seul ou
+  // plusieurs personnes visent explicitement le meme clic au meme instant), on utilise
+  // une transaction Firebase : le serveur relit la vraie valeur courante et reessaie
+  // tout seul en cas de conflit, au lieu du "dernier ecrivain gagne" habituel.
+  function togglePauseGlobale(){
+    if (FIREBASE_ACTIF && firebaseRef){
+      firebaseRef.transaction(donneesServeur => {
+        if (!donneesServeur || !donneesServeur.postes) return donneesServeur;
+        appliquerTogglePause(donneesServeur);
+        return donneesServeur;
+      });
+      return;
+    }
+    appliquerTogglePause(etat);
     sauvegarder();
     render();
   }
