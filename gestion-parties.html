@@ -229,6 +229,7 @@
     background: var(--bg-alt);
     aspect-ratio: 16 / 9;
     object-fit: cover;
+    cursor: pointer;
   }
   .carte-ecran .etat-ecran{
     font-size: 0.8rem;
@@ -423,6 +424,8 @@
   }
   .modale h3{ font-size: 1.1rem; }
   .modale-actions{ display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+  .modale-ecran{ max-width: 720px; }
+  .modale-ecran img{ width: 100%; border-radius: 10px; background: var(--bg-alt); }
 
   footer{
     text-align: center;
@@ -480,6 +483,17 @@
     <div class="modale-actions">
       <button id="modale-annuler">Annuler</button>
       <button id="modale-valider" class="primary">Valider</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay cache" id="overlay-ecran-agrandi">
+  <div class="modale modale-ecran">
+    <h3 id="titre-ecran-agrandi">Écran</h3>
+    <img id="img-ecran-agrandi" src="" alt="Aperçu écran agrandi">
+    <div class="etat-ecran" id="etat-ecran-agrandi"></div>
+    <div class="modale-actions">
+      <button id="fermer-ecran-agrandi" class="primary">Fermer</button>
     </div>
   </div>
 </div>
@@ -1112,9 +1126,40 @@
           <img src="${escapeHtml(capture.image)}" alt="Aperçu écran">
           <div class="etat-ecran">Actualisé il y a ${secondes}s</div>
         `;
+        div.querySelector('img').addEventListener('click', () => ouvrirEcranAgrandi(poste.nom));
       }
       grille.appendChild(div);
     });
+    if (posteEcranAgrandi) mettreAJourEcranAgrandi();
+  }
+
+  // Clic sur un aperçu d'écran = l'affiche en grand (même image, juste plus lisible
+  // que la petite vignette). Se met à jour tout seul si une nouvelle capture arrive
+  // pendant que c'est ouvert, et se ferme tout seul si la partie se termine.
+  let posteEcranAgrandi = null;
+
+  function ouvrirEcranAgrandi(nomPoste){
+    posteEcranAgrandi = nomPoste;
+    mettreAJourEcranAgrandi();
+    document.getElementById('overlay-ecran-agrandi').classList.remove('cache');
+  }
+
+  function fermerEcranAgrandi(){
+    posteEcranAgrandi = null;
+    document.getElementById('overlay-ecran-agrandi').classList.add('cache');
+  }
+
+  function mettreAJourEcranAgrandi(){
+    const poste = etat.postes.find(p => p.nom === posteEcranAgrandi);
+    const capture = captures[posteEcranAgrandi];
+    if (!poste || poste.statut !== 'encours' || !capture || !capture.image || !String(capture.image).startsWith('data:image/')){
+      fermerEcranAgrandi();
+      return;
+    }
+    const secondes = Math.max(0, Math.round((Date.now() - capture.maj) / 1000));
+    document.getElementById('titre-ecran-agrandi').textContent = poste.nom;
+    document.getElementById('img-ecran-agrandi').src = capture.image;
+    document.getElementById('etat-ecran-agrandi').textContent = `Actualisé il y a ${secondes}s`;
   }
 
   document.getElementById('btn-pause-annonce').addEventListener('click', togglePauseGlobale);
@@ -1152,6 +1197,15 @@
   });
   document.getElementById('modale-champs').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('modale-valider').click();
+  });
+  document.getElementById('fermer-ecran-agrandi').addEventListener('click', fermerEcranAgrandi);
+  document.getElementById('overlay-ecran-agrandi').addEventListener('click', e => {
+    if (e.target.id === 'overlay-ecran-agrandi') fermerEcranAgrandi();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!document.getElementById('overlay-ecran-agrandi').classList.contains('cache')) fermerEcranAgrandi();
+    else if (!document.getElementById('overlay-terminer').classList.contains('cache')) fermerModaleFin();
   });
 
   setInterval(() => {
