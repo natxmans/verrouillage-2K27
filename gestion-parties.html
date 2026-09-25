@@ -280,6 +280,17 @@
   .badge.libre{ background: rgba(148,148,176,0.15); color: var(--text-dim); }
   .badge.encours{ background: rgba(34,232,255,0.15); color: var(--neon-cyan); }
   .badge.pause{ background: rgba(255,176,32,0.15); color: var(--neon-orange); }
+  .badge-pegi{
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+    background: rgba(255,46,136,0.15);
+    color: var(--neon-pink);
+  }
 
   .poste .chrono{
     font-family: 'Orbitron', sans-serif;
@@ -482,7 +493,17 @@
 <script>
 (function(){
   const CLE_STOCKAGE = 'festival2k27_parties';
-  const JEUX_DISPONIBLES = ['World of Padman', 'Trackmania'];
+  // Liste mise a jour le 2026-09-25 d'apres le plan "Gaming Toussaint" (20-21 octobre) :
+  // remplace l'ancienne liste World of Padman/Trackmania, qui ne correspond plus au
+  // programme reel de cet evenement.
+  const JEUX_DISPONIBLES = [
+    'Mario Kart 8 Deluxe', 'Super Smash Bros Ultimate', 'FIFA / EA Sports FC',
+    'Fortnite', 'Valorant', 'Just Dance', 'Brawl Stars'
+  ];
+  // PEGI confirmes dans le plan (les autres jeux sont encore en cours d'evaluation par
+  // l'equipe + le SAJ, voir memoire du projet) : affiche juste un rappel visuel, ne
+  // remplace pas la verification du badge par l'animateur de chaque espace.
+  const PEGI_PAR_JEU = { 'Fortnite': 12, 'Valorant': 16 };
 
   // ↓↓↓ Pour connecter plusieurs appareils entre eux : crée un projet Firebase gratuit
   // (console.firebase.google.com), active "Realtime Database", et colle ici la config
@@ -834,10 +855,14 @@
 
     const pcVerrouille = poste.statut === 'libre' && poste.pauseRaison === 'changement';
     const badgeTxt = poste.statut === 'libre' ? 'Libre' : poste.statut === 'encours' ? 'En cours' : 'En pause';
+    const pegiActif = PEGI_PAR_JEU[poste.jeu];
 
     let contenuAction = '';
     if (poste.statut === 'libre'){
-      const optionsJeu = JEUX_DISPONIBLES.map(j => `<option value="${escapeHtml(j)}">${escapeHtml(j)}</option>`).join('');
+      const optionsJeu = JEUX_DISPONIBLES.map(j => {
+        const libelle = PEGI_PAR_JEU[j] ? `${j} (PEGI ${PEGI_PAR_JEU[j]})` : j;
+        return `<option value="${escapeHtml(j)}">${escapeHtml(libelle)}</option>`;
+      }).join('');
       contenuAction = `
         ${pcVerrouille ? `
         <div class="avis-verrou-pc">
@@ -863,7 +888,7 @@
       contenuAction = `
         <div class="chrono">${formatDuree(elapsedPoste(poste))}</div>
         <div class="infos">
-          <strong>${escapeHtml(poste.jeu) || 'Jeu non précisé'}</strong><br>
+          <strong>${escapeHtml(poste.jeu) || 'Jeu non précisé'}</strong>${pegiActif ? ` <span class="badge-pegi">PEGI ${pegiActif}</span>` : ''}<br>
           ${escapeHtml(poste.joueurs) || 'Joueur(s) non précisé(s)'}
         </div>
         <div class="poste-actions">
