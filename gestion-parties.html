@@ -442,9 +442,92 @@
     header{ padding: 14px 4%; }
     main{ padding: 28px 4% 80px; }
   }
+
+  /* ---- Verrou d'accès (outil interne, pas pour le public) ---- */
+  #gate-acces{
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: var(--bg);
+    padding: 24px;
+    gap: 6px;
+  }
+  #gate-acces.cache{ display: none; }
+  #gate-acces .icone{ font-size: 2.4rem; margin-bottom: 8px; }
+  #gate-acces h1{ font-family: 'Orbitron', sans-serif; font-size: 1.6rem; color: var(--neon-cyan); }
+  #gate-acces p{ color: var(--text-dim); max-width: 40ch; font-size: 0.95rem; }
+
+  .overlay-mdp{
+    position: fixed;
+    inset: 0;
+    z-index: 600;
+    background: rgba(5,5,10,0.85);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .overlay-mdp.cache{ display: none; }
+  .modale-mdp{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 26px;
+    max-width: 320px;
+    width: 100%;
+    text-align: center;
+  }
+  .modale-mdp h3{ font-size: 1.1rem; margin-bottom: 14px; }
+  .modale-mdp input{
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.05rem;
+    padding: 10px 12px;
+    border-radius: 8px;
+    text-align: center;
+    letter-spacing: 2px;
+  }
+  .mdp-actions{ display: flex; gap: 10px; margin-top: 16px; }
+  .mdp-actions button{ flex: 1; }
+  .mdp-erreur{ color: var(--neon-pink); font-size: 0.85rem; margin-top: 10px; display: none; }
+  .mdp-erreur.actif{ display: block; }
 </style>
 </head>
 <body>
+
+<div id="gate-acces">
+  <div class="icone">🔒</div>
+  <h1>Accès réservé</h1>
+  <p>Cet outil sert à gérer le festival en direct — réservé à l'équipe technique.</p>
+</div>
+<script>
+  try{
+    if (localStorage.getItem('2k27_gestion_debloque') === 'oui'){
+      document.getElementById('gate-acces').classList.add('cache');
+    }
+  }catch(e){}
+</script>
+
+<div class="overlay-mdp cache" id="overlay-mdp-acces">
+  <div class="modale-mdp">
+    <h3>Déverrouillage</h3>
+    <input type="password" id="champ-mdp-acces" placeholder="Code" autocomplete="off">
+    <div class="mdp-actions">
+      <button type="button" id="mdp-acces-annuler">Annuler</button>
+      <button type="button" id="mdp-acces-valider" class="primary">Valider</button>
+    </div>
+    <div class="mdp-erreur" id="mdp-acces-erreur">Code incorrect.</div>
+  </div>
+</div>
 
 <header>
   <div class="logo">🕹️ FESTIVAL 2K27</div>
@@ -1269,9 +1352,47 @@
   document.getElementById('overlay-ecran-agrandi').addEventListener('click', e => {
     if (e.target.id === 'overlay-ecran-agrandi') fermerEcranAgrandi();
   });
+  // Verrou d'acces : Ctrl+Maj+Q ouvre l'invite de code (meme code que verrou_poste.py,
+  // "2K27" sensible a la casse), memorise sur cet appareil une fois debloque. Outil
+  // interne herberge sur une URL publique (GitHub Pages) : sans ce verrou, n'importe
+  // qui tombant sur le lien pourrait manipuler les postes/verrous en direct pendant
+  // le festival.
+  const MOT_DE_PASSE_ACCES = '2K27';
+  const gateAcces = document.getElementById('gate-acces');
+  const overlayMdpAcces = document.getElementById('overlay-mdp-acces');
+  const champMdpAcces = document.getElementById('champ-mdp-acces');
+  const mdpAccesErreur = document.getElementById('mdp-acces-erreur');
+
+  function fermerMdpAcces(){
+    overlayMdpAcces.classList.add('cache');
+  }
+  function validerMdpAcces(){
+    if (champMdpAcces.value === MOT_DE_PASSE_ACCES){
+      gateAcces.classList.add('cache');
+      try{ localStorage.setItem('2k27_gestion_debloque', 'oui'); }catch(e){}
+      fermerMdpAcces();
+    } else {
+      mdpAccesErreur.classList.add('actif');
+    }
+  }
+  document.getElementById('mdp-acces-annuler').addEventListener('click', fermerMdpAcces);
+  document.getElementById('mdp-acces-valider').addEventListener('click', validerMdpAcces);
+  champMdpAcces.addEventListener('keydown', e => {
+    if (e.key === 'Enter') validerMdpAcces();
+  });
+
   document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.shiftKey && (e.key === 'Q' || e.key === 'q')){
+      e.preventDefault();
+      mdpAccesErreur.classList.remove('actif');
+      champMdpAcces.value = '';
+      overlayMdpAcces.classList.remove('cache');
+      champMdpAcces.focus();
+      return;
+    }
     if (e.key !== 'Escape') return;
-    if (!document.getElementById('overlay-ecran-agrandi').classList.contains('cache')) fermerEcranAgrandi();
+    if (!overlayMdpAcces.classList.contains('cache')) fermerMdpAcces();
+    else if (!document.getElementById('overlay-ecran-agrandi').classList.contains('cache')) fermerEcranAgrandi();
     else if (!document.getElementById('overlay-choisir-jeu').classList.contains('cache')) fermerChoixJeu();
     else if (!document.getElementById('overlay-terminer').classList.contains('cache')) fermerModaleFin();
   });
