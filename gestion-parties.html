@@ -1375,6 +1375,13 @@
       mdpAccesErreur.classList.add('actif');
     }
   }
+  // Reverrouiller ne demande pas de code (comme fermer une porte a cle ne demande
+  // pas la cle) : seul le DEBLOCAGE exige "2K27". Utile pour reverrouiller l'outil
+  // en partant du poste, sans devoir se souvenir du code juste pour le reactiver.
+  function reverrouillerAcces(){
+    gateAcces.classList.remove('cache');
+    try{ localStorage.removeItem('2k27_gestion_debloque'); }catch(e){}
+  }
   document.getElementById('mdp-acces-annuler').addEventListener('click', fermerMdpAcces);
   document.getElementById('mdp-acces-valider').addEventListener('click', validerMdpAcces);
   champMdpAcces.addEventListener('keydown', e => {
@@ -1384,10 +1391,14 @@
   document.addEventListener('keydown', e => {
     if (e.ctrlKey && e.shiftKey && (e.key === 'Q' || e.key === 'q')){
       e.preventDefault();
-      mdpAccesErreur.classList.remove('actif');
-      champMdpAcces.value = '';
-      overlayMdpAcces.classList.remove('cache');
-      champMdpAcces.focus();
+      if (gateAcces.classList.contains('cache')){
+        reverrouillerAcces();
+      } else {
+        mdpAccesErreur.classList.remove('actif');
+        champMdpAcces.value = '';
+        overlayMdpAcces.classList.remove('cache');
+        champMdpAcces.focus();
+      }
       return;
     }
     if (e.key !== 'Escape') return;
