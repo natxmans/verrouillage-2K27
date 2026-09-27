@@ -158,7 +158,7 @@
   button.small{ padding: 6px 12px; font-size: 0.85rem; }
   button:disabled{ opacity: 0.4; cursor: not-allowed; transform:none; }
 
-  input[type="text"], input[type="number"], select{
+  input[type="text"], input[type="number"], select, textarea{
     font-family: 'Rajdhani', sans-serif;
     font-size: 0.95rem;
     background: var(--bg-alt);
@@ -168,7 +168,8 @@
     border-radius: 6px;
     width: 100%;
   }
-  input:focus, select:focus{ outline: none; border-color: var(--neon-cyan); }
+  textarea{ resize: vertical; font-family: inherit; }
+  input:focus, select:focus, textarea:focus{ outline: none; border-color: var(--neon-cyan); }
 
   main{
     max-width: 1200px;
@@ -391,6 +392,59 @@
   }
   .carte-ajout:hover{ border-color: var(--neon-cyan); color: var(--neon-cyan); }
 
+  .grille-tournois{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 18px;
+  }
+  .carte-tournoi{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .tournoi-entete{ display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .tournoi-entete strong{ font-family: 'Orbitron', sans-serif; font-size: 0.95rem; }
+  .tournoi-vainqueur{
+    color: var(--neon-orange);
+    font-weight: 700;
+    background: rgba(255,176,32,0.12);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+  }
+  .tournoi-brackets{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .bracket-colonne{ display: flex; flex-direction: column; gap: 6px; }
+  .bracket-colonne h4{ font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+  .bracket-colonne button{ font-size: 0.78rem; padding: 6px 10px; }
+  .equipe-tag{
+    display: inline-block;
+    background: rgba(148,148,176,0.12);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 0.78rem;
+    margin: 2px 4px 2px 0;
+  }
+  .tournoi-matchs h4{ font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .match-attente{
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .match-choix{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .match-choix button{ font-size: 0.78rem; padding: 6px 10px; }
+  .btn-lancer-finale{ width: 100%; }
+  .tournoi-historique-detail{ font-size: 0.8rem; }
+  .tournoi-historique-detail summary{ cursor: pointer; }
+  .tournoi-historique-detail div{ padding: 2px 0; }
+
   .historique-liste{ display: flex; flex-direction: column; gap: 10px; }
   .historique-item{
     background: var(--card);
@@ -572,6 +626,11 @@
     <div class="grille-postes" id="grille-postes"></div>
   </section>
 
+  <section id="section-tournois">
+    <h2>🏆 Tournois <span class="compte" id="compte-tournois"></span> <span class="petit-texte">(bracket gagnants/perdants — perdre ne t'élimine pas tout de suite, ça te fait juste changer de bracket)</span></h2>
+    <div class="grille-tournois" id="grille-tournois"></div>
+  </section>
+
   <section id="section-ecrans">
     <h2>Écrans en direct <span class="petit-texte">(aperçu toutes les 10s pendant une partie — la connexion du PC est toujours affichée)</span></h2>
     <div class="grille-ecrans" id="grille-ecrans"></div>
@@ -623,6 +682,24 @@
     <div id="stats-contenu"></div>
     <div class="modale-actions">
       <button id="fermer-stats" class="primary">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay cache" id="overlay-nouveau-tournoi">
+  <div class="modale">
+    <h3>🏆 Nouveau tournoi</h3>
+    <div class="poste-form">
+      <label>Nom du tournoi</label>
+      <input type="text" id="champ-nom-tournoi" placeholder="Ex : Tournoi Fortnite">
+      <label>Jeu</label>
+      <select id="champ-jeu-tournoi"></select>
+      <label>Équipes (une par ligne, au moins 2)</label>
+      <textarea id="champ-equipes-tournoi" rows="6" placeholder="Équipe 1&#10;Équipe 2&#10;Équipe 3..."></textarea>
+    </div>
+    <div class="modale-actions">
+      <button id="nouveau-tournoi-annuler">Annuler</button>
+      <button id="nouveau-tournoi-valider" class="primary">Créer</button>
     </div>
   </div>
 </div>
@@ -718,7 +795,8 @@
       })),
       historique: [],
       globalPauseActive: false,
-      globalPausedIds: []
+      globalPausedIds: [],
+      tournois: []
     };
   }
 
@@ -728,6 +806,7 @@
       if (!brut) return etatParDefaut();
       const donnees = JSON.parse(brut);
       if (!donnees.postes || !donnees.historique) return etatParDefaut();
+      donnees.tournois = donnees.tournois || [];
       return donnees;
     }catch(e){
       return etatParDefaut();
@@ -787,6 +866,7 @@
         etat.globalPauseActive = etat.globalPauseActive || false;
         etat.globalPauseRaison = etat.globalPauseRaison || null;
         etat.globalPausedIds = etat.globalPausedIds || [];
+        etat.tournois = etat.tournois || [];
       }
       majBadgeConnexion('connecte');
       render();
@@ -1080,6 +1160,7 @@
         etat = donnees;
         etat.globalPauseActive = etat.globalPauseActive || false;
         etat.globalPausedIds = etat.globalPausedIds || [];
+        etat.tournois = etat.tournois || [];
         sauvegarder();
         render();
       }catch(err){
@@ -1148,6 +1229,239 @@
 
   function fermerStats(){
     document.getElementById('overlay-stats').classList.add('cache');
+  }
+
+  // --- Tournois (bracket gagnants/perdants) ---
+  // Principe simplifie, pense pour un festival jeunes/scolaire (pas de vraie tete de
+  // serie, pas de "reset" de finale comme dans un double elimination officiel) :
+  // - Toutes les equipes commencent cote "gagnants".
+  // - Perdre un match cote "gagnants" fait juste tomber cote "perdants" (repechage),
+  //   pas d'elimination immediate.
+  // - Perdre un match cote "perdants" elimine (deuxieme defaite = sorti du tournoi).
+  // - Quand il ne reste qu'1 equipe de chaque cote, une finale (match unique) decide
+  //   du vainqueur.
+  function ouvrirNouveauTournoi(){
+    document.getElementById('champ-nom-tournoi').value = '';
+    document.getElementById('champ-equipes-tournoi').value = '';
+    const selectJeu = document.getElementById('champ-jeu-tournoi');
+    selectJeu.innerHTML = JEUX_DISPONIBLES.map(j => `<option value="${j}">${j}</option>`).join('')
+      + '<option value="Autre">Autre...</option>';
+    document.getElementById('overlay-nouveau-tournoi').classList.remove('cache');
+  }
+
+  function fermerNouveauTournoi(){
+    document.getElementById('overlay-nouveau-tournoi').classList.add('cache');
+  }
+
+  function creerTournoi(){
+    const nom = document.getElementById('champ-nom-tournoi').value.trim();
+    const jeu = document.getElementById('champ-jeu-tournoi').value;
+    const brut = document.getElementById('champ-equipes-tournoi').value;
+    const noms = [...new Set(brut.split('\n').map(s => s.trim()).filter(Boolean))];
+    if (!nom){ alert("Donne un nom au tournoi."); return; }
+    if (noms.length < 2){ alert("Il faut au moins 2 équipes (une par ligne, sans doublon)."); return; }
+    etat.tournois.push({
+      id: idUnique('tournoi'),
+      nom, jeu,
+      termine: false,
+      vainqueurFinal: null,
+      equipes: noms.map(n => ({ id: idUnique('equipe'), nom: n, statut: 'gagnants' })),
+      matchs: []
+    });
+    sauvegarder();
+    fermerNouveauTournoi();
+    render();
+  }
+
+  function genererTourBracket(tournoiId, bracket){
+    const tournoi = etat.tournois.find(t => t.id === tournoiId);
+    if (!tournoi) return;
+    const enAttente = new Set();
+    tournoi.matchs.forEach(m => {
+      if (m.statut === 'attente'){ enAttente.add(m.equipeA); if (m.equipeB) enAttente.add(m.equipeB); }
+    });
+    const eligibles = tournoi.equipes.filter(e => e.statut === bracket && !enAttente.has(e.id));
+    if (eligibles.length < 2){
+      alert(`Pas assez d'équipes disponibles côté ${bracket === 'gagnants' ? 'Gagnants' : 'Perdants'} pour lancer un tour (il en faut au moins 2 qui ne jouent pas déjà).`);
+      return;
+    }
+    // Tirage au sort simple : pas de classement/tete de serie prealable a gerer.
+    const melange = [...eligibles];
+    for (let i = melange.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [melange[i], melange[j]] = [melange[j], melange[i]];
+    }
+    const tourPrecedent = tournoi.matchs.filter(m => m.bracket === bracket).reduce((max, m) => Math.max(max, m.tour), 0);
+    const numeroTour = tourPrecedent + 1;
+    for (let i = 0; i < melange.length; i += 2){
+      if (i + 1 < melange.length){
+        tournoi.matchs.push({
+          id: idUnique('match'), bracket, tour: numeroTour,
+          equipeA: melange[i].id, equipeB: melange[i + 1].id,
+          vainqueur: null, statut: 'attente', bye: false
+        });
+      } else {
+        // Nombre impair d'equipes ce tour-ci : la derniere est exemptee (qualifiee
+        // sans jouer), evite d'avoir besoin d'un nombre d'equipes en puissance de 2.
+        tournoi.matchs.push({
+          id: idUnique('match'), bracket, tour: numeroTour,
+          equipeA: melange[i].id, equipeB: null,
+          vainqueur: melange[i].id, statut: 'termine', bye: true
+        });
+      }
+    }
+    sauvegarder();
+    render();
+  }
+
+  function tournoiPeutLancerFinale(tournoi){
+    if (tournoi.termine) return false;
+    if (tournoi.matchs.some(m => m.statut === 'attente')) return false;
+    if (tournoi.matchs.some(m => m.bracket === 'finale')) return false;
+    const gagnantsActifs = tournoi.equipes.filter(e => e.statut === 'gagnants');
+    const perdantsActifs = tournoi.equipes.filter(e => e.statut === 'perdants');
+    return gagnantsActifs.length === 1 && perdantsActifs.length === 1;
+  }
+
+  function lancerFinale(tournoiId){
+    const tournoi = etat.tournois.find(t => t.id === tournoiId);
+    if (!tournoi || !tournoiPeutLancerFinale(tournoi)) return;
+    const finalisteGagnants = tournoi.equipes.find(e => e.statut === 'gagnants');
+    const finalistePerdants = tournoi.equipes.find(e => e.statut === 'perdants');
+    tournoi.matchs.push({
+      id: idUnique('match'), bracket: 'finale', tour: 1,
+      equipeA: finalisteGagnants.id, equipeB: finalistePerdants.id,
+      vainqueur: null, statut: 'attente', bye: false
+    });
+    sauvegarder();
+    render();
+  }
+
+  function enregistrerResultatMatch(tournoiId, matchId, vainqueurId){
+    const tournoi = etat.tournois.find(t => t.id === tournoiId);
+    if (!tournoi) return;
+    const match = tournoi.matchs.find(m => m.id === matchId);
+    if (!match || match.statut !== 'attente') return;
+    const perdantId = match.equipeA === vainqueurId ? match.equipeB : match.equipeA;
+    const equipeVainqueur = tournoi.equipes.find(e => e.id === vainqueurId);
+    const equipePerdant = tournoi.equipes.find(e => e.id === perdantId);
+    if (!equipeVainqueur || !equipePerdant) return;
+    if (!confirm(`Confirmer : "${equipeVainqueur.nom}" bat "${equipePerdant.nom}" ?`)) return;
+    match.statut = 'termine';
+    match.vainqueur = vainqueurId;
+    if (match.bracket === 'gagnants'){
+      equipePerdant.statut = 'perdants';
+    } else if (match.bracket === 'perdants'){
+      equipePerdant.statut = 'eliminee';
+    } else if (match.bracket === 'finale'){
+      equipeVainqueur.statut = 'championne';
+      tournoi.termine = true;
+      tournoi.vainqueurFinal = vainqueurId;
+    }
+    sauvegarder();
+    render();
+  }
+
+  function supprimerTournoi(id){
+    if (!confirm('Supprimer ce tournoi et tout son historique de matchs ?')) return;
+    etat.tournois = etat.tournois.filter(t => t.id !== id);
+    sauvegarder();
+    render();
+  }
+
+  function creerCarteTournoi(tournoi){
+    const carte = document.createElement('div');
+    carte.className = 'carte-tournoi';
+
+    const nomEquipe = id => {
+      const e = tournoi.equipes.find(x => x.id === id);
+      return e ? e.nom : '?';
+    };
+    const listeEquipes = liste => liste.length
+      ? liste.map(e => `<span class="equipe-tag">${escapeHtml(e.nom)}</span>`).join('')
+      : '<span class="petit-texte">Aucune pour le moment</span>';
+
+    const gagnants = tournoi.equipes.filter(e => e.statut === 'gagnants');
+    const perdants = tournoi.equipes.filter(e => e.statut === 'perdants');
+    const eliminees = tournoi.equipes.filter(e => e.statut === 'eliminee');
+    const enAttente = tournoi.matchs.filter(m => m.statut === 'attente');
+    const termines = tournoi.matchs.filter(m => m.statut === 'termine').slice().reverse();
+
+    const matchsAttenteHtml = enAttente.map(m => `
+      <div class="match-attente">
+        <span class="petit-texte">${m.bracket === 'finale' ? '🏆 Finale' : (m.bracket === 'gagnants' ? 'Gagnants' : 'Perdants') + ' — Tour ' + m.tour}</span>
+        <div class="match-choix">
+          <button class="small btn-declarer-vainqueur" data-match="${m.id}" data-vainqueur="${m.equipeA}">🏆 ${escapeHtml(nomEquipe(m.equipeA))}</button>
+          <span class="petit-texte">vs</span>
+          <button class="small btn-declarer-vainqueur" data-match="${m.id}" data-vainqueur="${m.equipeB}">🏆 ${escapeHtml(nomEquipe(m.equipeB))}</button>
+        </div>
+      </div>
+    `).join('') || '<div class="petit-texte">Aucun match en attente.</div>';
+
+    const historiqueHtml = termines.map(m => {
+      if (m.bye) return `<div>${escapeHtml(nomEquipe(m.equipeA))} — exempté(e) (qualifié(e) sans jouer)</div>`;
+      const bracketTxt = m.bracket === 'finale' ? 'Finale' : (m.bracket === 'gagnants' ? 'Gagnants' : 'Perdants');
+      return `<div>[${bracketTxt}] ${escapeHtml(nomEquipe(m.equipeA))} vs ${escapeHtml(nomEquipe(m.equipeB))} → <strong>${escapeHtml(nomEquipe(m.vainqueur))}</strong></div>`;
+    }).join('');
+
+    const peutFinale = tournoiPeutLancerFinale(tournoi);
+
+    carte.innerHTML = `
+      <div class="tournoi-entete">
+        <strong>${escapeHtml(tournoi.nom)}</strong>
+        <button class="small danger btn-suppr-tournoi" title="Supprimer ce tournoi">🗑</button>
+      </div>
+      <div class="petit-texte">${escapeHtml(tournoi.jeu || 'Jeu non précisé')} · ${tournoi.equipes.length} équipe(s)</div>
+      ${tournoi.termine
+        ? `<div class="tournoi-vainqueur">🏆 Vainqueur : ${escapeHtml(nomEquipe(tournoi.vainqueurFinal))}</div>`
+        : `
+        <div class="tournoi-brackets">
+          <div class="bracket-colonne">
+            <h4>Gagnants</h4>
+            <div>${listeEquipes(gagnants)}</div>
+            <button class="small btn-generer-tour" data-bracket="gagnants">Générer un tour</button>
+          </div>
+          <div class="bracket-colonne">
+            <h4>Perdants</h4>
+            <div>${listeEquipes(perdants)}</div>
+            <button class="small btn-generer-tour" data-bracket="perdants">Générer un tour</button>
+          </div>
+        </div>
+        ${peutFinale ? `<button class="btn-lancer-finale primary">🏆 Lancer la finale</button>` : ''}
+        <div class="tournoi-matchs">
+          <h4>Matchs en attente</h4>
+          ${matchsAttenteHtml}
+        </div>
+        `}
+      ${eliminees.length ? `<div class="petit-texte">Éliminé(e)s : ${eliminees.map(e => escapeHtml(e.nom)).join(', ')}</div>` : ''}
+      ${historiqueHtml ? `<details class="tournoi-historique-detail"><summary>Historique des matchs (${termines.length})</summary>${historiqueHtml}</details>` : ''}
+    `;
+
+    carte.querySelector('.btn-suppr-tournoi').addEventListener('click', () => supprimerTournoi(tournoi.id));
+    carte.querySelectorAll('.btn-generer-tour').forEach(b => {
+      b.addEventListener('click', () => genererTourBracket(tournoi.id, b.dataset.bracket));
+    });
+    const btnFinale = carte.querySelector('.btn-lancer-finale');
+    if (btnFinale) btnFinale.addEventListener('click', () => lancerFinale(tournoi.id));
+    carte.querySelectorAll('.btn-declarer-vainqueur').forEach(b => {
+      b.addEventListener('click', () => enregistrerResultatMatch(tournoi.id, b.dataset.match, b.dataset.vainqueur));
+    });
+
+    return carte;
+  }
+
+  function renderTournois(){
+    const grille = document.getElementById('grille-tournois');
+    grille.innerHTML = '';
+    etat.tournois.forEach(t => grille.appendChild(creerCarteTournoi(t)));
+
+    const carteAjout = document.createElement('div');
+    carteAjout.className = 'carte-ajout';
+    carteAjout.textContent = '+ Nouveau tournoi';
+    carteAjout.addEventListener('click', ouvrirNouveauTournoi);
+    grille.appendChild(carteAjout);
+
+    document.getElementById('compte-tournois').textContent = `(${etat.tournois.length})`;
   }
 
   function creerCartePoste(poste){
@@ -1268,6 +1582,8 @@
 
     document.getElementById('compte-postes').textContent =
       `(${etat.postes.filter(p => p.statut !== 'libre').length} occupé(s) / ${etat.postes.length})`;
+
+    renderTournois();
 
     const listeHist = document.getElementById('historique-liste');
     listeHist.innerHTML = '';
@@ -1451,6 +1767,11 @@
   document.getElementById('overlay-stats').addEventListener('click', e => {
     if (e.target.id === 'overlay-stats') fermerStats();
   });
+  document.getElementById('nouveau-tournoi-annuler').addEventListener('click', fermerNouveauTournoi);
+  document.getElementById('nouveau-tournoi-valider').addEventListener('click', creerTournoi);
+  document.getElementById('overlay-nouveau-tournoi').addEventListener('click', e => {
+    if (e.target.id === 'overlay-nouveau-tournoi') fermerNouveauTournoi();
+  });
 
   document.getElementById('overlay-choisir-jeu').addEventListener('click', e => {
     if (e.target.id === 'overlay-choisir-jeu') fermerChoixJeu();
@@ -1547,6 +1868,7 @@
     else if (!document.getElementById('overlay-ecran-agrandi').classList.contains('cache')) fermerEcranAgrandi();
     else if (!document.getElementById('overlay-choisir-jeu').classList.contains('cache')) fermerChoixJeu();
     else if (!document.getElementById('overlay-stats').classList.contains('cache')) fermerStats();
+    else if (!document.getElementById('overlay-nouveau-tournoi').classList.contains('cache')) fermerNouveauTournoi();
     else if (!document.getElementById('overlay-terminer').classList.contains('cache')) fermerModaleFin();
   });
 
