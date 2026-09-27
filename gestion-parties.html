@@ -440,6 +440,9 @@
   }
   .match-choix{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .match-choix button{ font-size: 0.78rem; padding: 6px 10px; }
+  .match-demarrer{ display: flex; align-items: center; gap: 8px; }
+  .match-demarrer select{ flex: 1; }
+  .match-demarrer button{ font-size: 0.78rem; padding: 6px 10px; white-space: nowrap; }
   .btn-lancer-finale{ width: 100%; }
   .tournoi-historique-detail{ font-size: 0.8rem; }
   .tournoi-historique-detail summary{ cursor: pointer; }
@@ -694,6 +697,7 @@
       <input type="text" id="champ-nom-tournoi" placeholder="Ex : Tournoi Fortnite">
       <label>Jeu</label>
       <select id="champ-jeu-tournoi"></select>
+      <input type="text" id="champ-jeu-autre-tournoi" placeholder="Précise le jeu" style="display:none;">
       <label>Équipes (une par ligne, au moins 2)</label>
       <textarea id="champ-equipes-tournoi" rows="6" placeholder="Équipe 1&#10;Équipe 2&#10;Équipe 3..."></textarea>
     </div>
@@ -1243,6 +1247,9 @@
   function ouvrirNouveauTournoi(){
     document.getElementById('champ-nom-tournoi').value = '';
     document.getElementById('champ-equipes-tournoi').value = '';
+    const champJeuAutre = document.getElementById('champ-jeu-autre-tournoi');
+    champJeuAutre.value = '';
+    champJeuAutre.style.display = 'none';
     const selectJeu = document.getElementById('champ-jeu-tournoi');
     selectJeu.innerHTML = JEUX_DISPONIBLES.map(j => `<option value="${j}">${j}</option>`).join('')
       + '<option value="Autre">Autre...</option>';
@@ -1256,6 +1263,7 @@
   function creerTournoi(){
     const nom = document.getElementById('champ-nom-tournoi').value.trim();
     const jeu = document.getElementById('champ-jeu-tournoi').value;
+    const jeuAutre = document.getElementById('champ-jeu-autre-tournoi').value.trim();
     const brut = document.getElementById('champ-equipes-tournoi').value;
     const noms = [...new Set(brut.split('\n').map(s => s.trim()).filter(Boolean))];
     if (!nom){ alert("Donne un nom au tournoi."); return; }
@@ -1263,6 +1271,7 @@
     etat.tournois.push({
       id: idUnique('tournoi'),
       nom, jeu,
+      jeuAutre: jeu === 'Autre' ? jeuAutre : '',
       termine: false,
       vainqueurFinal: null,
       equipes: noms.map(n => ({ id: idUnique('equipe'), nom: n, statut: 'gagnants' })),
@@ -1271,6 +1280,13 @@
     sauvegarder();
     fermerNouveauTournoi();
     render();
+  }
+
+  // Le jeu joué determine ce qui s'affiche sur le poste une fois le match demarre
+  // (voir demarrerMatchTournoi) : "Autre" a besoin d'un intitule libre, comme pour
+  // le meme choix sur une carte de poste.
+  function jeuAffichageTournoi(tournoi){
+    return tournoi.jeu === 'Autre' ? (tournoi.jeuAutre || 'Autre') : tournoi.jeu;
   }
 
   function genererTourBracket(tournoiId, bracket){
@@ -1298,7 +1314,7 @@
         tournoi.matchs.push({
           id: idUnique('match'), bracket, tour: numeroTour,
           equipeA: melange[i].id, equipeB: melange[i + 1].id,
-          vainqueur: null, statut: 'attente', bye: false
+          vainqueur: null, statut: 'attente', bye: false, posteId: null
         });
       } else {
         // Nombre impair d'equipes ce tour-ci : la derniere est exemptee (qualifiee
@@ -1331,8 +1347,35 @@
     tournoi.matchs.push({
       id: idUnique('match'), bracket: 'finale', tour: 1,
       equipeA: finalisteGagnants.id, equipeB: finalistePerdants.id,
-      vainqueur: null, statut: 'attente', bye: false
+      vainqueur: null, statut: 'attente', bye: false, posteId: null
     });
+    sauvegarder();
+    render();
+  }
+
+  function demarrerMatchTournoi(tournoiId, matchId, posteId){
+    const tournoi = etat.tournois.find(t => t.id === tournoiId);
+    if (!tournoi) return;
+    const match = tournoi.matchs.find(m => m.id === matchId);
+    if (!match || match.statut !== 'attente' || match.posteId) return;
+    const poste = trouverPoste(posteId);
+    if (!poste || poste.statut !== 'libre'){
+      alert("Ce poste n'est plus libre, choisis-en un autre.");
+      render();
+      return;
+    }
+    const nomEquipe = id => { const e = tournoi.equipes.find(x => x.id === id); return e ? e.nom : '?'; };
+    // Meme effet que le bouton "Demarrer" d'un poste normal (voir demarrerPartie) :
+    // le poste passe "en cours", ce qui declenche le lancement du jeu sur le PC
+    // (verrou_poste.py), le chrono, et la capture d'ecran, comme n'importe quel match.
+    poste.jeu = jeuAffichageTournoi(tournoi);
+    poste.joueurs = `${nomEquipe(match.equipeA)} vs ${nomEquipe(match.equipeB)}`;
+    poste.statut = 'encours';
+    poste.debut = Date.now();
+    poste.pausedMs = 0;
+    poste.pauseDepuis = null;
+    poste.pauseRaison = null;
+    match.posteId = posteId;
     sauvegarder();
     render();
   }
@@ -1349,6 +1392,15 @@
     if (!confirm(`Confirmer : "${equipeVainqueur.nom}" bat "${equipePerdant.nom}" ?`)) return;
     match.statut = 'termine';
     match.vainqueur = vainqueurId;
+    if (match.posteId){
+      // Libere/termine vraiment le poste (historique + verrou "changement de jeu"),
+      // sauf si quelqu'un a deja termine ce poste directement depuis sa carte
+      // (dans ce cas il n'est deja plus "encours", pas la peine de le refaire).
+      const posteMatch = trouverPoste(match.posteId);
+      if (posteMatch && posteMatch.statut === 'encours'){
+        terminerPourChangement(match.posteId, `${equipeVainqueur.nom} gagne`);
+      }
+    }
     if (match.bracket === 'gagnants'){
       equipePerdant.statut = 'perdants';
     } else if (match.bracket === 'perdants'){
@@ -1386,17 +1438,42 @@
     const eliminees = tournoi.equipes.filter(e => e.statut === 'eliminee');
     const enAttente = tournoi.matchs.filter(m => m.statut === 'attente');
     const termines = tournoi.matchs.filter(m => m.statut === 'termine').slice().reverse();
+    const postesLibres = etat.postes.filter(p => p.statut === 'libre');
 
-    const matchsAttenteHtml = enAttente.map(m => `
-      <div class="match-attente">
-        <span class="petit-texte">${m.bracket === 'finale' ? '🏆 Finale' : (m.bracket === 'gagnants' ? 'Gagnants' : 'Perdants') + ' — Tour ' + m.tour}</span>
-        <div class="match-choix">
-          <button class="small btn-declarer-vainqueur" data-match="${m.id}" data-vainqueur="${m.equipeA}">🏆 ${escapeHtml(nomEquipe(m.equipeA))}</button>
-          <span class="petit-texte">vs</span>
-          <button class="small btn-declarer-vainqueur" data-match="${m.id}" data-vainqueur="${m.equipeB}">🏆 ${escapeHtml(nomEquipe(m.equipeB))}</button>
+    const matchsAttenteHtml = enAttente.map(m => {
+      const enTete = `<span class="petit-texte">${m.bracket === 'finale' ? '🏆 Finale' : (m.bracket === 'gagnants' ? 'Gagnants' : 'Perdants') + ' — Tour ' + m.tour}</span>`;
+      if (!m.posteId){
+        // Pas encore assigne a un poste : il faut choisir un poste libre pour
+        // pouvoir jouer ce match (ça lance vraiment le jeu/le verrou/le chrono
+        // sur ce poste, comme un demarrage normal).
+        const contenu = postesLibres.length
+          ? `<div class="match-demarrer">
+               <select class="select-poste-match" data-match="${m.id}">
+                 ${postesLibres.map(p => `<option value="${p.id}">${escapeHtml(p.nom)}</option>`).join('')}
+               </select>
+               <button class="small primary btn-demarrer-match" data-match="${m.id}">▶ Démarrer</button>
+             </div>`
+          : '<div class="petit-texte">Aucun poste libre pour l\'instant.</div>';
+        return `
+          <div class="match-attente">
+            ${enTete}
+            <div class="petit-texte">${escapeHtml(nomEquipe(m.equipeA))} vs ${escapeHtml(nomEquipe(m.equipeB))}</div>
+            ${contenu}
+          </div>
+        `;
+      }
+      const posteEnCours = trouverPoste(m.posteId);
+      return `
+        <div class="match-attente">
+          ${enTete}${posteEnCours ? ` <span class="petit-texte">· sur ${escapeHtml(posteEnCours.nom)}</span>` : ''}
+          <div class="match-choix">
+            <button class="small btn-declarer-vainqueur" data-match="${m.id}" data-vainqueur="${m.equipeA}">🏆 ${escapeHtml(nomEquipe(m.equipeA))}</button>
+            <span class="petit-texte">vs</span>
+            <button class="small btn-declarer-vainqueur" data-match="${m.id}" data-vainqueur="${m.equipeB}">🏆 ${escapeHtml(nomEquipe(m.equipeB))}</button>
+          </div>
         </div>
-      </div>
-    `).join('') || '<div class="petit-texte">Aucun match en attente.</div>';
+      `;
+    }).join('') || '<div class="petit-texte">Aucun match en attente.</div>';
 
     const historiqueHtml = termines.map(m => {
       if (m.bye) return `<div>${escapeHtml(nomEquipe(m.equipeA))} — exempté(e) (qualifié(e) sans jouer)</div>`;
@@ -1411,7 +1488,7 @@
         <strong>${escapeHtml(tournoi.nom)}</strong>
         <button class="small danger btn-suppr-tournoi" title="Supprimer ce tournoi">🗑</button>
       </div>
-      <div class="petit-texte">${escapeHtml(tournoi.jeu || 'Jeu non précisé')} · ${tournoi.equipes.length} équipe(s)</div>
+      <div class="petit-texte">${escapeHtml(jeuAffichageTournoi(tournoi) || 'Jeu non précisé')} · ${tournoi.equipes.length} équipe(s)</div>
       ${tournoi.termine
         ? `<div class="tournoi-vainqueur">🏆 Vainqueur : ${escapeHtml(nomEquipe(tournoi.vainqueurFinal))}</div>`
         : `
@@ -1445,6 +1522,12 @@
     if (btnFinale) btnFinale.addEventListener('click', () => lancerFinale(tournoi.id));
     carte.querySelectorAll('.btn-declarer-vainqueur').forEach(b => {
       b.addEventListener('click', () => enregistrerResultatMatch(tournoi.id, b.dataset.match, b.dataset.vainqueur));
+    });
+    carte.querySelectorAll('.btn-demarrer-match').forEach(b => {
+      b.addEventListener('click', () => {
+        const select = carte.querySelector(`.select-poste-match[data-match="${b.dataset.match}"]`);
+        if (select && select.value) demarrerMatchTournoi(tournoi.id, b.dataset.match, select.value);
+      });
     });
 
     return carte;
@@ -1771,6 +1854,11 @@
   document.getElementById('nouveau-tournoi-valider').addEventListener('click', creerTournoi);
   document.getElementById('overlay-nouveau-tournoi').addEventListener('click', e => {
     if (e.target.id === 'overlay-nouveau-tournoi') fermerNouveauTournoi();
+  });
+  document.getElementById('champ-jeu-tournoi').addEventListener('change', e => {
+    const champJeuAutre = document.getElementById('champ-jeu-autre-tournoi');
+    champJeuAutre.style.display = e.target.value === 'Autre' ? 'block' : 'none';
+    if (e.target.value === 'Autre') champJeuAutre.focus();
   });
 
   document.getElementById('overlay-choisir-jeu').addEventListener('click', e => {
