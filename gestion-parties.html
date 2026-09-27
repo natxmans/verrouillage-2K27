@@ -222,7 +222,24 @@
     font-family: 'Orbitron', sans-serif;
     font-size: 0.9rem;
     color: var(--neon-cyan);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
   }
+  .etat-connexion-poste{
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .etat-connexion-poste.connecte{ background: rgba(43,255,136,0.15); color: var(--neon-green); }
+  .etat-connexion-poste.hors-ligne{ background: rgba(255,46,136,0.15); color: var(--neon-pink); }
+  .etat-connexion-poste.jamais{ background: rgba(148,148,176,0.15); color: var(--text-dim); }
   .carte-ecran img{
     width: 100%;
     border-radius: 8px;
@@ -548,7 +565,7 @@
   </section>
 
   <section id="section-ecrans">
-    <h2>Écrans en direct <span class="petit-texte">(actualisé toutes les 10s, uniquement pendant une partie)</span></h2>
+    <h2>Écrans en direct <span class="petit-texte">(aperçu toutes les 10s pendant une partie — la connexion du PC est toujours affichée)</span></h2>
     <div class="grille-ecrans" id="grille-ecrans"></div>
   </section>
 
@@ -1211,6 +1228,7 @@
 
     if (FIREBASE_ACTIF){
       abonnerEcrans();
+      abonnerHeartbeats();
       renderEcrans();
     }
   }
@@ -1223,6 +1241,42 @@
   // qui n'envoie une capture que pendant une partie active (voir plus haut).
   let refsEcrans = {};
   let captures = {};
+  let refsHeartbeat = {};
+  let heartbeats = {};
+  const SEUIL_HORS_LIGNE_MS = 25000; // verrou_poste.py envoie un signal toutes les 10s
+
+  function abonnerHeartbeats(){
+    const nomsActuels = new Set(etat.postes.map(p => p.nom));
+    Object.keys(refsHeartbeat).forEach(nom => {
+      if (!nomsActuels.has(nom)){
+        refsHeartbeat[nom].off();
+        delete refsHeartbeat[nom];
+        delete heartbeats[nom];
+      }
+    });
+    etat.postes.forEach(poste => {
+      if (refsHeartbeat[poste.nom]) return;
+      const ref = firebase.database().ref('festival2k27_heartbeat/' + poste.nom);
+      ref.on('value', snapshot => {
+        heartbeats[poste.nom] = snapshot.val();
+        renderEcrans();
+      });
+      refsHeartbeat[poste.nom] = ref;
+    });
+  }
+
+  function construireStatutConnexion(nomPoste){
+    const battement = heartbeats[nomPoste];
+    if (!battement || !battement.vu){
+      return '<span class="etat-connexion-poste jamais">⚪ Jamais connecté</span>';
+    }
+    const ecouleMs = Date.now() - battement.vu;
+    if (ecouleMs <= SEUIL_HORS_LIGNE_MS){
+      return '<span class="etat-connexion-poste connecte">🟢 Connecté</span>';
+    }
+    const secondes = Math.round(ecouleMs / 1000);
+    return `<span class="etat-connexion-poste hors-ligne">🔴 Hors ligne (${secondes}s)</span>`;
+  }
 
   function abonnerEcrans(){
     const nomsActuels = new Set(etat.postes.map(p => p.nom));
@@ -1249,22 +1303,23 @@
     grille.innerHTML = '';
     etat.postes.forEach(poste => {
       const capture = captures[poste.nom];
+      const statutConnexion = construireStatutConnexion(poste.nom);
       const div = document.createElement('div');
       div.className = 'carte-ecran';
       if (poste.statut !== 'encours'){
         div.innerHTML = `
-          <div class="nom-ecran">${escapeHtml(poste.nom)}</div>
+          <div class="nom-ecran">${escapeHtml(poste.nom)} ${statutConnexion}</div>
           <div class="etat-ecran">Aucune partie en cours</div>
         `;
       } else if (!capture || !capture.image || !String(capture.image).startsWith('data:image/')){
         div.innerHTML = `
-          <div class="nom-ecran">${escapeHtml(poste.nom)}</div>
+          <div class="nom-ecran">${escapeHtml(poste.nom)} ${statutConnexion}</div>
           <div class="etat-ecran">En attente du premier aperçu…</div>
         `;
       } else {
         const secondes = Math.max(0, Math.round((Date.now() - capture.maj) / 1000));
         div.innerHTML = `
-          <div class="nom-ecran">${escapeHtml(poste.nom)}</div>
+          <div class="nom-ecran">${escapeHtml(poste.nom)} ${statutConnexion}</div>
           <img src="${escapeHtml(capture.image)}" alt="Aperçu écran">
           <div class="etat-ecran">Actualisé il y a ${secondes}s</div>
         `;
