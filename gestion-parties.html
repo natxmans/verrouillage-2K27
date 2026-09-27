@@ -444,6 +444,12 @@
   .modale-ecran{ max-width: 720px; }
   .modale-ecran img{ width: 100%; border-radius: 10px; background: var(--bg-alt); }
   .choix-jeu{ width: 100%; text-align: left; }
+  .modale-stats{ max-width: 460px; max-height: 80vh; overflow-y: auto; }
+  .stat-resume{ display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+  .stat-resume strong{ font-size: 1.4rem; color: var(--neon-cyan); }
+  .modale-stats h4{ font-size: 0.85rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 6px; }
+  .stat-ligne{ display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
+  .stat-ligne:last-child{ border-bottom: none; }
 
   footer{
     text-align: center;
@@ -552,8 +558,10 @@
     <span id="badge-connexion" class="badge-connexion">● Chargement…</span>
     <button id="btn-pause-annonce" class="pause-globale" title="Met en pause tous les postes en cours pour une annonce">⏸ Pause annonce</button>
     <button id="btn-terminer-jeu" class="pause-globale changement" title="Choisis un jeu : termine toutes ses parties en cours et verrouille les postes pendant le changement">🏁 Terminer un jeu</button>
+    <button id="btn-stats" title="Voir un résumé des parties jouées">📊 Statistiques</button>
     <button id="btn-export" title="Sauvegarder les données dans un fichier">⬇ Exporter</button>
     <button id="btn-import" title="Recharger des données depuis un fichier">⬆ Importer</button>
+    <button id="btn-export-csv" title="Exporter l'historique en tableur (Excel, LibreOffice...)">📄 CSV</button>
     <input type="file" id="fichier-import" accept="application/json">
   </div>
 </header>
@@ -605,6 +613,16 @@
     <div class="etat-ecran" id="etat-ecran-agrandi"></div>
     <div class="modale-actions">
       <button id="fermer-ecran-agrandi" class="primary">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay cache" id="overlay-stats">
+  <div class="modale modale-stats">
+    <h3>📊 Statistiques</h3>
+    <div id="stats-contenu"></div>
+    <div class="modale-actions">
+      <button id="fermer-stats" class="primary">Fermer</button>
     </div>
   </div>
 </div>
@@ -1071,6 +1089,67 @@
     lecteur.readAsText(fichier);
   }
 
+  function exporterCsv(){
+    const echapperCsv = (val) => {
+      const s = String(val ?? '');
+      return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const entetes = ['Date', 'Heure', 'Poste', 'Jeu', 'Joueurs', 'Résultat', 'Durée'];
+    const lignes = etat.historique.map(h => {
+      const d = new Date(h.fin);
+      return [
+        d.toLocaleDateString('fr-FR'),
+        d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        h.poste, h.jeu || '', h.joueurs || '', h.resultat, formatDuree(h.dureeMs)
+      ];
+    });
+    // ';' comme séparateur (pas ',') : Excel en français utilise la virgule comme
+    // séparateur décimal, un CSV en virgules s'ouvrirait mal groupé en une seule colonne.
+    const contenu = [entetes, ...lignes].map(l => l.map(echapperCsv).join(';')).join('\r\n');
+    // BOM UTF-8 en tête : sans lui, Excel affiche les accents en mojibake.
+    const blob = new Blob(['﻿' + contenu], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const date = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    a.href = url;
+    a.download = `festival2k27-historique-${date}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function ouvrirStats(){
+    const total = etat.historique.length;
+    const parJeu = {};
+    const parPoste = {};
+    etat.historique.forEach(h => {
+      const jeu = h.jeu || 'Non précisé';
+      parJeu[jeu] = (parJeu[jeu] || 0) + 1;
+      parPoste[h.poste] = (parPoste[h.poste] || 0) + 1;
+    });
+    const enCours = etat.postes.filter(p => p.statut === 'encours').length;
+    const enPause = etat.postes.filter(p => p.statut === 'pause').length;
+    const versLignes = (obj) => Object.entries(obj)
+      .sort((a, b) => b[1] - a[1])
+      .map(([nom, n]) => `<div class="stat-ligne"><span>${escapeHtml(nom)}</span><span>${n}</span></div>`)
+      .join('');
+    document.getElementById('stats-contenu').innerHTML = `
+      <div class="stat-resume">
+        <div><strong>${total}</strong> partie(s) terminée(s) au total</div>
+        <div class="petit-texte">${enCours} poste(s) en cours · ${enPause} en pause en ce moment</div>
+      </div>
+      <h4>Parties par jeu</h4>
+      ${versLignes(parJeu) || '<div class="vide">Aucune partie terminée pour le moment.</div>'}
+      ${total > 0 ? `<h4>Parties par poste</h4>${versLignes(parPoste)}` : ''}
+    `;
+    document.getElementById('overlay-stats').classList.remove('cache');
+  }
+
+  function fermerStats(){
+    document.getElementById('overlay-stats').classList.add('cache');
+  }
+
   function creerCartePoste(poste){
     const div = document.createElement('div');
     div.className = 'poste statut-' + poste.statut;
@@ -1366,6 +1445,13 @@
     const btn = e.target.closest('.choix-jeu');
     if (btn) choisirJeuATerminer(btn.dataset.jeu);
   });
+  document.getElementById('btn-stats').addEventListener('click', ouvrirStats);
+  document.getElementById('fermer-stats').addEventListener('click', fermerStats);
+  document.getElementById('btn-export-csv').addEventListener('click', exporterCsv);
+  document.getElementById('overlay-stats').addEventListener('click', e => {
+    if (e.target.id === 'overlay-stats') fermerStats();
+  });
+
   document.getElementById('overlay-choisir-jeu').addEventListener('click', e => {
     if (e.target.id === 'overlay-choisir-jeu') fermerChoixJeu();
   });
@@ -1460,6 +1546,7 @@
     if (!overlayMdpAcces.classList.contains('cache')) fermerMdpAcces();
     else if (!document.getElementById('overlay-ecran-agrandi').classList.contains('cache')) fermerEcranAgrandi();
     else if (!document.getElementById('overlay-choisir-jeu').classList.contains('cache')) fermerChoixJeu();
+    else if (!document.getElementById('overlay-stats').classList.contains('cache')) fermerStats();
     else if (!document.getElementById('overlay-terminer').classList.contains('cache')) fermerModaleFin();
   });
 

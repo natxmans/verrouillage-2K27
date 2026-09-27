@@ -21,13 +21,22 @@ Apercu d'ecran a distance (facon Veyon, visible depuis gestion-parties.html,
 bouton "Ecrans") : necessite Pillow (pip install pillow). Sans Pillow, tout le
 reste du programme continue de fonctionner normalement, seul l'apercu est
 desactive.
+
+Configuration des jeux (chemins des .exe) : voir/modifier "config.json", cree
+automatiquement a cote de ce fichier au premier lancement.
+
+Journal : "verrou_poste_log.txt" (a cote de ce fichier) trace les evenements
+utiles (demarrage, connexion/deconnexion Firebase, jeu lance/ferme, erreurs) --
+utile pour diagnostiquer un souci sur place sans terminal.
 """
 import sys
+import os
 import json
 import ssl
 import subprocess
 import threading
 import time
+import traceback
 import urllib.parse
 import urllib.request
 import tkinter as tk
@@ -49,16 +58,65 @@ except ImportError:
 DATABASE_URL = "https://festival2k27-default-rtdb.europe-west1.firebasedatabase.app"
 FIREBASE_API_KEY = "AIzaSyCFd2YAtKt8efLtsQIeyvCr0B8rVBs7VZ0"
 
-# A REMPLIR UNE FOIS PAR PC : chemin exact du .exe de chaque jeu sur CETTE machine.
-# Pour trouver le chemin : clic droit sur le raccourci du jeu > Proprietes > "Cible".
-# Un jeu absent de cette liste (ou "Autre" saisi a la main) ne sera pas lance/ferme
-# automatiquement, seul le blocage visuel/clavier continuera de fonctionner pour lui.
-JEUX_EXECUTABLES = {
+DOSSIER_SCRIPT = os.path.dirname(os.path.abspath(__file__))
+CHEMIN_CONFIG = os.path.join(DOSSIER_SCRIPT, "config.json")
+CHEMIN_LOG = os.path.join(DOSSIER_SCRIPT, "verrou_poste_log.txt")
+
+
+def journaliser(message):
+    # Petit journal texte a cote du script : permet de diagnostiquer un souci une
+    # fois lance en double-clic via le .bat (pas de terminal visible), sans acces a
+    # distance. Best-effort comme le reste du programme : si l'ecriture echoue
+    # (disque plein, dossier en lecture seule...), on continue sans planter.
+    try:
+        horodatage = time.strftime("%Y-%m-%d %H:%M:%S")
+        with open(CHEMIN_LOG, "a", encoding="utf-8") as f:
+            f.write(f"[{horodatage}] {message}\n")
+    except Exception:
+        pass
+
+
+# Valeurs par defaut, utilisees tant qu'aucun config.json n'existe ou qu'il est
+# invalide (degradation gracieuse, meme principe que le reste du programme).
+JEUX_EXECUTABLES_DEFAUT = {
     "World of Padman": r"C:\CHEMIN\A\CONFIGURER\WorldOfPadman\wop.exe",
     "Trackmania": r"C:\CHEMIN\A\CONFIGURER\Trackmania\Trackmania.exe",
     "Fortnite": r"C:\CHEMIN\A\CONFIGURER\Fortnite\FortniteClient-Win64-Shipping.exe",
     "Valorant": r"C:\CHEMIN\A\CONFIGURER\VALORANT\live\VALORANT-Win64-Shipping.exe",
 }
+
+
+def charger_config_jeux():
+    # A REMPLIR UNE FOIS PAR PC : plutot que de modifier ce fichier Python, on lit
+    # maintenant les chemins des .exe depuis un simple config.json a cote du script
+    # (cree automatiquement avec les valeurs par defaut s'il n'existe pas encore) --
+    # n'importe qui peut l'ouvrir avec le Bloc-notes et remplacer les chemins, sans
+    # toucher au code. Pour trouver un chemin : clic droit sur le raccourci du jeu >
+    # Proprietes > "Cible". Un jeu absent de ce fichier (ou "Autre" saisi a la main)
+    # ne sera simplement pas lance/ferme automatiquement, le reste (verrou, chrono,
+    # suspension) continue de fonctionner normalement pour lui.
+    if not os.path.exists(CHEMIN_CONFIG):
+        try:
+            with open(CHEMIN_CONFIG, "w", encoding="utf-8") as f:
+                json.dump({"jeux_executables": JEUX_EXECUTABLES_DEFAUT}, f, ensure_ascii=False, indent=2)
+            journaliser(f"config.json cree avec les valeurs par defaut ({CHEMIN_CONFIG})")
+        except Exception as err:
+            journaliser(f"Impossible de creer config.json : {err}")
+        return dict(JEUX_EXECUTABLES_DEFAUT)
+    try:
+        with open(CHEMIN_CONFIG, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        jeux_config = config.get("jeux_executables")
+        if isinstance(jeux_config, dict) and jeux_config:
+            journaliser(f"config.json charge ({len(jeux_config)} jeu(x))")
+            return jeux_config
+        journaliser("config.json present mais sans 'jeux_executables' valide - valeurs par defaut utilisees")
+    except Exception as err:
+        journaliser(f"config.json illisible ({err}) - valeurs par defaut utilisees")
+    return dict(JEUX_EXECUTABLES_DEFAUT)
+
+
+JEUX_EXECUTABLES = charger_config_jeux()
 
 # Certains antivirus (Avast, etc.) interceptent le HTTPS pour le scanner avec leur
 # propre certificat racine. Ce certificat est deja approuve par Windows (l'antivirus
@@ -180,11 +238,15 @@ def gerer_lancement_jeu(statut, jeu):
             try:
                 subprocess.Popen([chemin], cwd=chemin.rsplit("\\", 1)[0])
                 dernier_jeu_lance = chemin
-            except Exception:
+                journaliser(f"Jeu lance : {jeu} ({chemin})")
+            except Exception as err:
                 dernier_jeu_lance = None
+                journaliser(f"Echec du lancement de {jeu} ({chemin}) : {err}")
     elif statut == "libre" and dernier_statut_connu != "libre":
         # Couvre aussi la fin normale (Terminer) et la fin groupee "Tout terminer"
         # (changement de jeu), qui passent toutes les deux par le statut "libre".
+        if dernier_jeu_lance:
+            journaliser(f"Fermeture du jeu en cours ({dernier_jeu_lance})")
         fermer_jeu_lance()
     dernier_statut_connu = statut
 
@@ -212,6 +274,8 @@ def envoyer_battement():
 def poll_firebase():
     base_url = DATABASE_URL + "/festival2k27_etat/postes.json"
     dernier_battement = 0
+    dernier_connecte_journal = None
+    dernier_poste_trouve_journal = None
     while True:
         try:
             jeton = jeton_valide()
@@ -243,7 +307,19 @@ def poll_firebase():
                 etat["pauseRaison"] = nouvelle_raison
                 etat["jeu"] = nouveau_jeu
             gerer_lancement_jeu(nouveau_statut, nouveau_jeu)
-        except Exception:
+            if dernier_connecte_journal is not True:
+                journaliser("Connexion Firebase etablie")
+                dernier_connecte_journal = True
+            if bool(trouve) != dernier_poste_trouve_journal:
+                if trouve:
+                    journaliser(f"Poste \"{NOM_POSTE}\" trouve sur le site")
+                else:
+                    journaliser(f"Poste \"{NOM_POSTE}\" INTROUVABLE sur le site - verifie l'orthographe exacte")
+                dernier_poste_trouve_journal = bool(trouve)
+        except Exception as err:
+            if dernier_connecte_journal is not False:
+                journaliser(f"Connexion Firebase perdue : {err}")
+                dernier_connecte_journal = False
             with etat_lock:
                 etat["connected"] = False
         maintenant = time.time()
@@ -656,7 +732,9 @@ def quitter(event=None):
     # Demande le mot de passe avant de fermer, pour eviter qu'un joueur quitte le
     # programme lui-meme (Ctrl+Maj+Q) pour contourner le verrouillage.
     if not demander_mot_de_passe():
+        journaliser("Tentative de fermeture annulee ou refusee (mot de passe incorrect)")
         return
+    journaliser("Fermeture du programme (mot de passe correct)")
     reprendre_jeu_suspendu()
     try:
         if hook_id:
@@ -673,31 +751,40 @@ overlay.protocol("WM_DELETE_WINDOW", quitter)
 
 
 def verifier_etat():
-    with etat_lock:
-        instantane = dict(etat)
+    # Tout le corps est protege par un try/except : sans ca, une exception
+    # inattendue ici (bug futur, etat Firebase mal forme...) arreterait silencieusement
+    # toute la chaine root.after() - le programme resterait fige sur son dernier
+    # affichage (ex: verrou reste affiche a vie) sans aucune trace visible du souci.
+    # Le "finally" garantit que la boucle continue de tourner meme apres une erreur.
+    try:
+        with etat_lock:
+            instantane = dict(etat)
 
-    if instantane["locked"]:
-        texte = TEXTES_PAUSE.get(instantane["pauseRaison"], "Annonce en cours - merci de patienter")
-        overlay_sous_titre.configure(text=texte)
-        afficher_verrou(instantane["pauseRaison"])
-    else:
-        cacher_verrou()
+        if instantane["locked"]:
+            texte = TEXTES_PAUSE.get(instantane["pauseRaison"], "Annonce en cours - merci de patienter")
+            overlay_sous_titre.configure(text=texte)
+            afficher_verrou(instantane["pauseRaison"])
+        else:
+            cacher_verrou()
 
-    if instantane["statut"] in ("encours", "pause") and instantane["pauseRaison"] != "changement":
-        couleur = "#ffb020" if instantane["statut"] == "pause" else "#22e8ff"
-        chrono_label.configure(text=formater_duree(elapsed_ms(instantane)), fg=couleur)
-        afficher_chrono()
-    else:
-        cacher_chrono()
+        if instantane["statut"] in ("encours", "pause") and instantane["pauseRaison"] != "changement":
+            couleur = "#ffb020" if instantane["statut"] == "pause" else "#22e8ff"
+            chrono_label.configure(text=formater_duree(elapsed_ms(instantane)), fg=couleur)
+            afficher_chrono()
+        else:
+            cacher_chrono()
 
-    if instantane["connected"] and instantane["poste_trouve"] is False:
-        afficher_avertissement()
-    else:
-        cacher_avertissement()
+        if instantane["connected"] and instantane["poste_trouve"] is False:
+            afficher_avertissement()
+        else:
+            cacher_avertissement()
+    except Exception:
+        journaliser("Erreur inattendue dans verifier_etat :\n" + traceback.format_exc())
+    finally:
+        root.after(500, verifier_etat)
 
-    root.after(500, verifier_etat)
 
-
+journaliser(f"Demarrage du programme - poste \"{NOM_POSTE}\"" + (" (mode --sans-blocage)" if SANS_BLOCAGE else ""))
 threading.Thread(target=poll_firebase, daemon=True).start()
 threading.Thread(target=boucle_capture_ecran, daemon=True).start()
 root.after(500, verifier_etat)
