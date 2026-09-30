@@ -784,6 +784,18 @@
     return prefixe + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7);
   }
 
+  // Firebase supprime les tableaux/valeurs vides d'un objet (ex: un tournoi tout
+  // juste cree avec "matchs: []") : sans cette normalisation, un tournoi renvoye
+  // par Firebase avec "matchs" ou "equipes" absent fait planter tout le rendu
+  // (.filter()/.some() sur undefined), et bloque le reste de la page avec lui.
+  function normaliserTournois(tournois){
+    return (tournois || []).map(t => ({
+      ...t,
+      equipes: t.equipes || [],
+      matchs: t.matchs || []
+    }));
+  }
+
   function etatParDefaut(){
     return {
       postes: [1,2,3,4].map(n => ({
@@ -810,7 +822,7 @@
       if (!brut) return etatParDefaut();
       const donnees = JSON.parse(brut);
       if (!donnees.postes || !donnees.historique) return etatParDefaut();
-      donnees.tournois = donnees.tournois || [];
+      donnees.tournois = normaliserTournois(donnees.tournois);
       return donnees;
     }catch(e){
       return etatParDefaut();
@@ -870,7 +882,7 @@
         etat.globalPauseActive = etat.globalPauseActive || false;
         etat.globalPauseRaison = etat.globalPauseRaison || null;
         etat.globalPausedIds = etat.globalPausedIds || [];
-        etat.tournois = etat.tournois || [];
+        etat.tournois = normaliserTournois(etat.tournois);
       }
       majBadgeConnexion('connecte');
       render();
@@ -1164,7 +1176,7 @@
         etat = donnees;
         etat.globalPauseActive = etat.globalPauseActive || false;
         etat.globalPausedIds = etat.globalPausedIds || [];
-        etat.tournois = etat.tournois || [];
+        etat.tournois = normaliserTournois(etat.tournois);
         sauvegarder();
         render();
       }catch(err){
