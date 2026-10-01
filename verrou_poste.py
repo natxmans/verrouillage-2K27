@@ -58,7 +58,14 @@ except ImportError:
 DATABASE_URL = "https://festival2k27-default-rtdb.europe-west1.firebasedatabase.app"
 FIREBASE_API_KEY = "AIzaSyCFd2YAtKt8efLtsQIeyvCr0B8rVBs7VZ0"
 
-DOSSIER_SCRIPT = os.path.dirname(os.path.abspath(__file__))
+# Une fois transforme en .exe autonome (PyInstaller --onefile), __file__ pointe vers
+# un dossier temporaire efface a chaque fermeture : config.json et le journal doivent
+# plutot vivre a cote du vrai .exe (sys.executable), sinon ils seraient perdus a
+# chaque relancement et semblaient "ne jamais se sauvegarder".
+if getattr(sys, "frozen", False):
+    DOSSIER_SCRIPT = os.path.dirname(os.path.abspath(sys.executable))
+else:
+    DOSSIER_SCRIPT = os.path.dirname(os.path.abspath(__file__))
 CHEMIN_CONFIG = os.path.join(DOSSIER_SCRIPT, "config.json")
 CHEMIN_LOG = os.path.join(DOSSIER_SCRIPT, "verrou_poste_log.txt")
 
