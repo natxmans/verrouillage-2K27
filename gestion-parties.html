@@ -541,6 +541,7 @@
   #gate-acces .icone{ font-size: 2.4rem; margin-bottom: 8px; }
   #gate-acces h1{ font-family: 'Orbitron', sans-serif; font-size: 1.6rem; color: var(--neon-cyan); }
   #gate-acces p{ color: var(--text-dim); max-width: 40ch; font-size: 0.95rem; }
+  #gate-acces button{ margin-top: 18px; min-height: 48px; padding: 0 26px; font-size: 1rem; }
 
   .overlay-mdp{
     position: fixed;
@@ -588,6 +589,7 @@
   <div class="icone">🔒</div>
   <h1>Accès réservé</h1>
   <p>Cet outil sert à gérer le festival en direct — réservé à l'équipe technique.</p>
+  <button type="button" id="gate-acces-bouton" class="primary">🔑 Entrer le code</button>
 </div>
 <script>
   try{
@@ -1944,6 +1946,14 @@
     gateAcces.classList.remove('cache');
     try{ localStorage.removeItem('2k27_gestion_debloque'); }catch(e){}
   }
+  function ouvrirMdpAcces(){
+    mdpAccesErreur.classList.remove('actif');
+    champMdpAcces.value = '';
+    overlayMdpAcces.classList.remove('cache');
+    champMdpAcces.focus();
+  }
+  // Bouton tactile : sur tablette/téléphone il n'y a pas de clavier pour Ctrl+Maj+Q.
+  document.getElementById('gate-acces-bouton').addEventListener('click', ouvrirMdpAcces);
   document.getElementById('mdp-acces-annuler').addEventListener('click', fermerMdpAcces);
   document.getElementById('mdp-acces-valider').addEventListener('click', validerMdpAcces);
   champMdpAcces.addEventListener('keydown', e => {
@@ -1956,10 +1966,7 @@
       if (gateAcces.classList.contains('cache')){
         reverrouillerAcces();
       } else {
-        mdpAccesErreur.classList.remove('actif');
-        champMdpAcces.value = '';
-        overlayMdpAcces.classList.remove('cache');
-        champMdpAcces.focus();
+        ouvrirMdpAcces();
       }
       return;
     }
