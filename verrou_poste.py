@@ -166,13 +166,19 @@ if IGNORER_VERIF_SSL:
 jeton_id = None
 jeton_rafraichissement = None
 jeton_expiration = 0
+derniere_erreur_auth = None
+
+# La cle Firebase est restreinte aux navigateurs (referrer = le site GitHub Pages) : sans cet
+# en-tete, Google repond 403 "Requests from referer <empty> are blocked" et la base est
+# inaccessible (401). On s'annonce donc avec l'adresse autorisee.
+REFERER_AUTORISE = "https://natxmans.github.io/verrouillage-2K27/"
 
 
 def obtenir_nouveau_jeton():
     global jeton_id, jeton_rafraichissement, jeton_expiration
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={FIREBASE_API_KEY}"
     donnees = json.dumps({"returnSecureToken": True}).encode("utf-8")
-    requete = urllib.request.Request(url, data=donnees, headers={"Content-Type": "application/json"})
+    requete = urllib.request.Request(url, data=donnees, headers={"Content-Type": "application/json", "Referer": REFERER_AUTORISE})
     with urllib.request.urlopen(requete, timeout=5, context=CONTEXTE_SSL) as reponse:
         resultat = json.loads(reponse.read().decode("utf-8"))
     jeton_id = resultat["idToken"]
@@ -184,7 +190,7 @@ def rafraichir_jeton():
     global jeton_id, jeton_expiration
     url = f"https://securetoken.googleapis.com/v1/token?key={FIREBASE_API_KEY}"
     donnees = urllib.parse.urlencode({"grant_type": "refresh_token", "refresh_token": jeton_rafraichissement}).encode("utf-8")
-    requete = urllib.request.Request(url, data=donnees, headers={"Content-Type": "application/x-www-form-urlencoded"})
+    requete = urllib.request.Request(url, data=donnees, headers={"Content-Type": "application/x-www-form-urlencoded", "Referer": REFERER_AUTORISE})
     with urllib.request.urlopen(requete, timeout=5, context=CONTEXTE_SSL) as reponse:
         resultat = json.loads(reponse.read().decode("utf-8"))
     jeton_id = resultat["id_token"]
@@ -192,7 +198,7 @@ def rafraichir_jeton():
 
 
 def jeton_valide():
-    global jeton_id
+    global jeton_id, derniere_erreur_auth
     try:
         if jeton_id is None:
             obtenir_nouveau_jeton()
@@ -201,8 +207,14 @@ def jeton_valide():
                 rafraichir_jeton()
             except Exception:
                 obtenir_nouveau_jeton()
-    except Exception:
-        jeton_id = None  # authentification anonyme pas encore activee : on continue sans jeton
+    except Exception as err:
+        jeton_id = None  # authentification impossible : on continue sans jeton, mais on le note une fois dans le journal
+        if str(err) != derniere_erreur_auth:
+            derniere_erreur_auth = str(err)
+            try:
+                journaliser(f"Authentification anonyme Firebase impossible : {err}")
+            except Exception:
+                pass
     return jeton_id
 
 
