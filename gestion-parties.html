@@ -4,6 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Festival 2K27 — Gestion des parties</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0a0a14">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gestion 2K27">
+<script>
+  // le navigateur propose l'installation très tôt : on garde l'événement pour le bouton « Installer »
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    window.__evtInstall = e;
+    if (window.__majInstall) window.__majInstall();
+  });
+</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕹️</text></svg>">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
@@ -542,6 +557,8 @@
   #gate-acces h1{ font-family: 'Orbitron', sans-serif; font-size: 1.6rem; color: var(--neon-cyan); }
   #gate-acces p{ color: var(--text-dim); max-width: 40ch; font-size: 0.95rem; }
   #gate-acces button{ margin-top: 18px; min-height: 48px; padding: 0 26px; font-size: 1rem; }
+  #gate-acces #gate-installer{ margin-top: 12px; border-color: rgba(34,232,255,0.5); }
+  #gate-acces .astuce-ios{ margin-top: 16px; font-size: 0.85rem; }
 
   .overlay-mdp{
     position: fixed;
@@ -590,6 +607,8 @@
   <h1>Accès réservé</h1>
   <p>Cet outil sert à gérer le festival en direct — réservé à l'équipe technique.</p>
   <button type="button" id="gate-acces-bouton" class="primary">🔑 Entrer le code</button>
+  <button type="button" id="gate-installer" hidden>📲 Installer l'application</button>
+  <p id="gate-ios" class="astuce-ios" hidden>Sur iPhone / iPad : touche « Partager » puis « Sur l'écran d'accueil » pour installer l'appli.</p>
 </div>
 <script>
   try{
@@ -621,6 +640,7 @@
     <button id="btn-export" title="Sauvegarder les données dans un fichier">⬇ Exporter</button>
     <button id="btn-import" title="Recharger des données depuis un fichier">⬆ Importer</button>
     <button id="btn-export-csv" title="Exporter l'historique en tableur (Excel, LibreOffice...)">📄 CSV</button>
+    <button id="btn-installer" hidden title="Installer l'application sur cet appareil">📲 Installer l'appli</button>
     <input type="file" id="fichier-import" accept="application/json">
   </div>
 </header>
@@ -1978,6 +1998,29 @@
     else if (!document.getElementById('overlay-nouveau-tournoi').classList.contains('cache')) fermerNouveauTournoi();
     else if (!document.getElementById('overlay-terminer').classList.contains('cache')) fermerModaleFin();
   });
+
+  // Application installable (PWA) : le bouton n'apparaît que si le navigateur propose l'installation
+  const dejaInstallee = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const boutonsInstaller = [document.getElementById('btn-installer'), document.getElementById('gate-installer')];
+  function majInstall(){
+    boutonsInstaller.forEach(b => { if (b) b.hidden = !window.__evtInstall || dejaInstallee; });
+  }
+  window.__majInstall = majInstall;
+  boutonsInstaller.forEach(b => b && b.addEventListener('click', () => {
+    const evt = window.__evtInstall;
+    if (!evt) return;
+    evt.prompt();
+    evt.userChoice.finally(() => { window.__evtInstall = null; majInstall(); });
+  }));
+  window.addEventListener('appinstalled', () => { window.__evtInstall = null; majInstall(); });
+  majInstall();
+  if (!dejaInstallee && /iphone|ipad|ipod/i.test(navigator.userAgent)){
+    const astuceIos = document.getElementById('gate-ios');
+    if (astuceIos) astuceIos.hidden = false;
+  }
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
 
   setInterval(() => {
     if (!etat) return;

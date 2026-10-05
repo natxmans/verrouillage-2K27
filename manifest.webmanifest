@@ -1,0 +1,19 @@
+{
+  "id": "./gestion-parties.html",
+  "name": "Festival 2K27 — Gestion des parties",
+  "short_name": "Gestion 2K27",
+  "description": "Suivi des parties en direct et pause annonce, réservé à l'équipe technique du festival 2K27.",
+  "lang": "fr",
+  "start_url": "./gestion-parties.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0a14",
+  "theme_color": "#0a0a14",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

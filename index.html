@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestion des parties — Application 2K27</title>
+<meta name="description" content="Application de suivi des parties en direct du festival 2K27, réservée à l'équipe technique.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0a0a14">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gestion 2K27">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg: #0a0a14;
+    --bg-alt: #10101c;
+    --neon-purple: #b026ff;
+    --neon-cyan: #22e8ff;
+    --neon-pink: #ff2e88;
+    --neon-green: #2bff88;
+    --text: #e8e8f5;
+    --text-dim: #9494b0;
+    --border: rgba(255,255,255,0.1);
+  }
+  *{ margin: 0; padding: 0; box-sizing: border-box; }
+  body{
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 18px;
+    line-height: 1.6;
+    display: grid;
+    place-items: center;
+    padding: 28px 5%;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before{
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(176,38,255,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(176,38,255,0.06) 1px, transparent 1px);
+    background-size: 45px 45px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+    z-index: -2;
+  }
+  body::after{
+    content: "";
+    position: fixed; inset: 0;
+    background: radial-gradient(circle at 15% 20%, rgba(176,38,255,0.18), transparent 45%),
+                radial-gradient(circle at 85% 80%, rgba(34,232,255,0.14), transparent 45%);
+    z-index: -1;
+    pointer-events: none;
+  }
+  h1, h2{ font-family: 'Orbitron', sans-serif; }
+
+  .carte{
+    width: 100%;
+    max-width: 640px;
+    padding: 38px 34px 34px;
+    text-align: center;
+    border: 1px solid transparent;
+    border-radius: 24px;
+    background: linear-gradient(var(--bg-alt), var(--bg-alt)) padding-box,
+                linear-gradient(135deg, var(--neon-purple), var(--neon-cyan) 55%, var(--neon-pink)) border-box;
+    box-shadow: 0 0 70px rgba(176,38,255,0.18), 0 30px 60px rgba(0,0,0,0.4);
+  }
+  .carte img.icone{
+    width: 112px; height: 112px;
+    border-radius: 26px;
+    box-shadow: 0 0 40px rgba(176,38,255,0.45);
+    margin-bottom: 18px;
+  }
+  .carte h1{
+    font-size: clamp(1.7rem, 6vw, 2.3rem);
+    line-height: 1.15;
+    background: linear-gradient(90deg, var(--neon-purple), var(--neon-cyan), var(--neon-pink));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sous{ color: var(--neon-cyan); font-weight: 600; letter-spacing: 1px; margin-top: 4px; }
+  .texte{ color: var(--text-dim); margin: 18px auto 0; max-width: 46ch; }
+  .actions{ display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 26px; }
+  .btn{
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    min-height: 52px; padding: 0 28px;
+    border: 0; border-radius: 40px;
+    font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1rem;
+    letter-spacing: 1px; text-transform: uppercase; cursor: pointer; text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+  }
+  .btn:hover{ transform: translateY(-2px); }
+  .btn.principal{ background: linear-gradient(90deg, var(--neon-purple), var(--neon-cyan)); color: #06060c; box-shadow: 0 10px 30px rgba(176,38,255,0.35); }
+  .btn.secondaire{ background: rgba(34,232,255,0.06); color: var(--text); border: 1px solid rgba(34,232,255,0.55); }
+  .btn:focus-visible{ outline: 2px solid var(--neon-cyan); outline-offset: 3px; }
+  .statut{ margin-top: 16px; min-height: 1.6em; font-weight: 600; color: var(--neon-green); }
+
+  .etapes{ margin-top: 28px; text-align: left; display: grid; gap: 12px; }
+  .etape{
+    padding: 14px 18px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03);
+    font-size: 0.95rem;
+    color: var(--text-dim);
+  }
+  .etape b{ display: block; color: var(--text); font-family: 'Orbitron', sans-serif; font-size: 0.9rem; margin-bottom: 4px; }
+  .etape.pour-vous{ border-color: var(--neon-cyan); background: rgba(34,232,255,0.07); box-shadow: 0 0 24px rgba(34,232,255,0.15); }
+  .etape.pour-vous b::after{ content: "  ← ton appareil"; font-family: 'Rajdhani', sans-serif; font-weight: 700; color: var(--neon-cyan); font-size: 0.85rem; }
+  .note{ margin-top: 22px; font-size: 0.85rem; color: var(--text-dim); }
+  .note a{ color: var(--neon-cyan); text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<main class="carte">
+  <img class="icone" src="icon-192.png" alt="Icône de l'application Gestion 2K27" width="112" height="112">
+  <h1>Gestion des parties</h1>
+  <div class="sous">Festival 2K27 · Gaming Toussaint 2026</div>
+  <p class="texte">Suivi des parties en direct, pause annonce et tournois. Application réservée à l'équipe technique : un code est demandé à l'ouverture.</p>
+
+  <div class="actions">
+    <button type="button" class="btn principal" id="btn-installer">📲 Télécharger l'application</button>
+    <a class="btn secondaire" href="gestion-parties.html">Ouvrir dans le navigateur</a>
+  </div>
+  <div class="statut" id="statut" role="status" aria-live="polite"></div>
+
+  <div class="etapes" id="etapes">
+    <div class="etape" data-os="pc">
+      <b>Ordinateur (Windows, Mac) — Chrome ou Edge</b>
+      Clique sur « Télécharger l'application » (ou sur l'icône ⊕ à droite de la barre d'adresse), puis « Installer ». L'appli s'ajoute au menu Démarrer et s'ouvre dans sa propre fenêtre.
+    </div>
+    <div class="etape" data-os="android">
+      <b>Tablette ou téléphone Android — Chrome</b>
+      Appuie sur « Télécharger l'application », puis « Installer ». Sinon : menu ⋮ → « Installer l'application ».
+    </div>
+    <div class="etape" data-os="ios">
+      <b>iPhone ou iPad — Safari</b>
+      Appuie sur « Partager » (le carré avec une flèche) → « Sur l'écran d'accueil » → « Ajouter ». Cela ne marche que dans Safari.
+    </div>
+  </div>
+
+  <p class="note">Une connexion internet est nécessaire pour que les appareils partagent les parties en direct. L'application se met à jour toute seule.
+    Pour le verrouillage des PC du tournoi, voir la <a href="https://github.com/natxmans/verrouillage-2K27/blob/main/FICHE_TECHNIQUE.md">fiche technique</a>.</p>
+</main>
+
+<script>
+(function(){
+  var bouton = document.getElementById('btn-installer');
+  var statut = document.getElementById('statut');
+  var etapes = document.getElementById('etapes');
+  var evt = null;
+
+  var ua = navigator.userAgent || '';
+  var os = /iphone|ipad|ipod/i.test(ua) ? 'ios' : /android/i.test(ua) ? 'android' : 'pc';
+  var bloc = etapes.querySelector('[data-os="' + os + '"]');
+  if (bloc) bloc.classList.add('pour-vous');
+
+  var dejaInstallee = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (dejaInstallee){
+    statut.textContent = '✅ Tu utilises déjà l\'application installée.';
+    bouton.hidden = true;
+  }
+
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    evt = e;
+    statut.textContent = '';
+  });
+  window.addEventListener('appinstalled', function(){
+    evt = null;
+    statut.textContent = '✅ Application installée ! Cherche « Gestion 2K27 » dans tes applications.';
+  });
+
+  bouton.addEventListener('click', function(){
+    if (evt){
+      evt.prompt();
+      evt.userChoice.then(function(choix){
+        if (choix && choix.outcome === 'accepted') statut.textContent = 'Installation en cours…';
+        evt = null;
+      });
+    } else {
+      statut.textContent = os === 'ios'
+        ? 'Sur iPhone / iPad : Partager → « Sur l\'écran d\'accueil » (voir ci-dessous).'
+        : 'Ton navigateur ne propose pas l\'installation directe : suis les étapes ci-dessous.';
+      var cible = etapes.querySelector('.pour-vous');
+      if (cible) cible.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  });
+
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  }
+})();
+</script>
+</body>
+</html>
