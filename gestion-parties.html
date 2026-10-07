@@ -1972,12 +1972,13 @@
   document.getElementById('overlay-ecran-agrandi').addEventListener('click', e => {
     if (e.target.id === 'overlay-ecran-agrandi') fermerEcranAgrandi();
   });
-  // Verrou d'acces : Ctrl+Maj+Q ouvre l'invite de code (meme code que verrou_poste.py,
-  // "2K27" sensible a la casse), memorise sur cet appareil une fois debloque. Outil
+  // Verrou d'acces : Ctrl+Maj+Q ouvre l'invite de code (code propre a cet outil, different
+  // de celui de verrou_poste.py depuis le 7 oct. 2026, sensible a la casse), memorise sur
+  // cet appareil une fois debloque. Outil
   // interne herberge sur une URL publique (GitHub Pages) : sans ce verrou, n'importe
   // qui tombant sur le lien pourrait manipuler les postes/verrous en direct pendant
   // le festival.
-  const MOT_DE_PASSE_ACCES = '2K27';
+  const MOT_DE_PASSE_ACCES = 'ZKZ7';
   const gateAcces = document.getElementById('gate-acces');
   const overlayMdpAcces = document.getElementById('overlay-mdp-acces');
   const champMdpAcces = document.getElementById('champ-mdp-acces');
@@ -1996,7 +1997,7 @@
     }
   }
   // Reverrouiller ne demande pas de code (comme fermer une porte a cle ne demande
-  // pas la cle) : seul le DEBLOCAGE exige "2K27". Utile pour reverrouiller l'outil
+  // pas la cle) : seul le DEBLOCAGE exige le code. Utile pour reverrouiller l'outil
   // en partant du poste, sans devoir se souvenir du code juste pour le reactiver.
   function reverrouillerAcces(){
     gateAcces.classList.remove('cache');
