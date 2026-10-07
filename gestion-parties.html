@@ -458,6 +458,9 @@
   .match-demarrer{ display: flex; align-items: center; gap: 8px; }
   .match-demarrer select{ flex: 1; }
   .match-demarrer button{ font-size: 0.78rem; padding: 6px 10px; white-space: nowrap; }
+  .match-demarrer-deux{ display: flex; flex-direction: column; gap: 6px; }
+  .match-demarrer-deux label{ display: flex; flex-direction: column; gap: 3px; }
+  .match-demarrer-deux button{ font-size: 0.78rem; padding: 6px 10px; align-self: flex-start; }
   .btn-lancer-finale{ width: 100%; }
   .tournoi-historique-detail{ font-size: 0.8rem; }
   .tournoi-historique-detail summary{ cursor: pointer; }
@@ -722,6 +725,7 @@
       <input type="text" id="champ-jeu-autre-tournoi" placeholder="Précise le jeu" style="display:none;">
       <label>Équipes (une par ligne, au moins 2)</label>
       <textarea id="champ-equipes-tournoi" rows="6" placeholder="Équipe 1&#10;Équipe 2&#10;Équipe 3..."></textarea>
+      <p class="petit-texte">Chaque équipe joue sur son propre PC : un match demande 2 postes libres.</p>
     </div>
     <div class="modale-actions">
       <button id="nouveau-tournoi-annuler">Annuler</button>
@@ -1348,7 +1352,7 @@
         tournoi.matchs.push({
           id: idUnique('match'), bracket, tour: numeroTour,
           equipeA: melange[i].id, equipeB: melange[i + 1].id,
-          vainqueur: null, statut: 'attente', bye: false, posteId: null
+          vainqueur: null, statut: 'attente', bye: false, posteIdA: null, posteIdB: null
         });
       } else {
         // Nombre impair d'equipes ce tour-ci : la derniere est exemptee (qualifiee
@@ -1381,35 +1385,54 @@
     tournoi.matchs.push({
       id: idUnique('match'), bracket: 'finale', tour: 1,
       equipeA: finalisteGagnants.id, equipeB: finalistePerdants.id,
-      vainqueur: null, statut: 'attente', bye: false, posteId: null
+      vainqueur: null, statut: 'attente', bye: false, posteIdA: null, posteIdB: null
     });
     sauvegarder();
     render();
   }
 
-  function demarrerMatchTournoi(tournoiId, matchId, posteId){
+  // Un match se joue sur deux PC : un par equipe (posteIdA et posteIdB). Les anciens
+  // matchs, lances avec un seul poste (champ posteId), restent lisibles.
+  function postesDuMatch(m){
+    const ids = [m.posteIdA, m.posteIdB].filter(Boolean);
+    if (!ids.length && m.posteId) ids.push(m.posteId);
+    return ids;
+  }
+
+  function demarrerMatchTournoi(tournoiId, matchId, posteIdA, posteIdB){
     const tournoi = etat.tournois.find(t => t.id === tournoiId);
     if (!tournoi) return;
     const match = tournoi.matchs.find(m => m.id === matchId);
-    if (!match || match.statut !== 'attente' || match.posteId) return;
-    const poste = trouverPoste(posteId);
-    if (!poste || poste.statut !== 'libre'){
-      alert("Ce poste n'est plus libre, choisis-en un autre.");
+    if (!match || match.statut !== 'attente' || postesDuMatch(match).length) return;
+    if (!posteIdA || !posteIdB || posteIdA === posteIdB){
+      alert("Choisis deux postes différents : chaque équipe joue sur son propre PC.");
+      return;
+    }
+    const posteA = trouverPoste(posteIdA);
+    const posteB = trouverPoste(posteIdB);
+    if (!posteA || !posteB || posteA.statut !== 'libre' || posteB.statut !== 'libre'){
+      alert("Un des deux postes n'est plus libre, choisis-en d'autres.");
       render();
       return;
     }
     const nomEquipe = id => { const e = tournoi.equipes.find(x => x.id === id); return e ? e.nom : '?'; };
-    // Meme effet que le bouton "Demarrer" d'un poste normal (voir demarrerPartie) :
-    // le poste passe "en cours", ce qui declenche le lancement du jeu sur le PC
-    // (verrou_poste.py), le chrono, et la capture d'ecran, comme n'importe quel match.
-    poste.jeu = jeuAffichageTournoi(tournoi);
-    poste.joueurs = `${nomEquipe(match.equipeA)} vs ${nomEquipe(match.equipeB)}`;
-    poste.statut = 'encours';
-    poste.debut = Date.now();
-    poste.pausedMs = 0;
-    poste.pauseDepuis = null;
-    poste.pauseRaison = null;
-    match.posteId = posteId;
+    const nomA = nomEquipe(match.equipeA);
+    const nomB = nomEquipe(match.equipeB);
+    const jeu = jeuAffichageTournoi(tournoi);
+    // Meme effet que le bouton "Demarrer" d'un poste normal (voir demarrerPartie), sur
+    // chacun des deux PC : le poste passe "en cours", ce qui declenche le lancement du
+    // jeu sur le PC (verrou_poste.py), le chrono, et la capture d'ecran.
+    [[posteA, nomA, nomB], [posteB, nomB, nomA]].forEach(([poste, nom, adversaire]) => {
+      poste.jeu = jeu;
+      poste.joueurs = `${nom} (contre ${adversaire})`;
+      poste.statut = 'encours';
+      poste.debut = Date.now();
+      poste.pausedMs = 0;
+      poste.pauseDepuis = null;
+      poste.pauseRaison = null;
+    });
+    match.posteIdA = posteIdA;
+    match.posteIdB = posteIdB;
     sauvegarder();
     render();
   }
@@ -1426,15 +1449,15 @@
     if (!confirm(`Confirmer : "${equipeVainqueur.nom}" bat "${equipePerdant.nom}" ?`)) return;
     match.statut = 'termine';
     match.vainqueur = vainqueurId;
-    if (match.posteId){
-      // Libere/termine vraiment le poste (historique + verrou "changement de jeu"),
-      // sauf si quelqu'un a deja termine ce poste directement depuis sa carte
-      // (dans ce cas il n'est deja plus "encours", pas la peine de le refaire).
-      const posteMatch = trouverPoste(match.posteId);
-      if (posteMatch && posteMatch.statut === 'encours'){
-        terminerPourChangement(match.posteId, `${equipeVainqueur.nom} gagne`);
+    // Libere/termine vraiment les postes du match, un par equipe (historique + verrou
+    // "changement de jeu"), sauf si quelqu'un a deja termine un poste directement depuis
+    // sa carte (il n'est alors plus "en cours", pas la peine de le refaire).
+    postesDuMatch(match).forEach(idPoste => {
+      const posteMatch = trouverPoste(idPoste);
+      if (posteMatch && (posteMatch.statut === 'encours' || posteMatch.statut === 'pause')){
+        terminerPourChangement(idPoste, `${equipeVainqueur.nom} gagne`);
       }
-    }
+    });
     if (match.bracket === 'gagnants'){
       equipePerdant.statut = 'perdants';
     } else if (match.bracket === 'perdants'){
@@ -1476,18 +1499,23 @@
 
     const matchsAttenteHtml = enAttente.map(m => {
       const enTete = `<span class="petit-texte">${m.bracket === 'finale' ? '🏆 Finale' : (m.bracket === 'gagnants' ? 'Gagnants' : 'Perdants') + ' — Tour ' + m.tour}</span>`;
-      if (!m.posteId){
-        // Pas encore assigne a un poste : il faut choisir un poste libre pour
-        // pouvoir jouer ce match (ça lance vraiment le jeu/le verrou/le chrono
-        // sur ce poste, comme un demarrage normal).
-        const contenu = postesLibres.length
-          ? `<div class="match-demarrer">
-               <select class="select-poste-match" data-match="${m.id}">
-                 ${postesLibres.map(p => `<option value="${p.id}">${escapeHtml(p.nom)}</option>`).join('')}
-               </select>
+      if (!postesDuMatch(m).length){
+        // Pas encore assigne : chaque equipe joue sur son propre PC, il faut donc
+        // choisir deux postes libres pour pouvoir jouer ce match (ça lance vraiment le
+        // jeu/le verrou/le chrono sur les deux postes, comme un demarrage normal).
+        const options = (choisi) => postesLibres.map((p, i) =>
+          `<option value="${p.id}"${i === choisi ? ' selected' : ''}>${escapeHtml(p.nom)}</option>`).join('');
+        const contenu = postesLibres.length >= 2
+          ? `<div class="match-demarrer-deux">
+               <label class="petit-texte">PC de ${escapeHtml(nomEquipe(m.equipeA))}
+                 <select class="select-poste-match" data-match="${m.id}" data-equipe="A">${options(0)}</select>
+               </label>
+               <label class="petit-texte">PC de ${escapeHtml(nomEquipe(m.equipeB))}
+                 <select class="select-poste-match" data-match="${m.id}" data-equipe="B">${options(1)}</select>
+               </label>
                <button class="small primary btn-demarrer-match" data-match="${m.id}">▶ Démarrer</button>
              </div>`
-          : '<div class="petit-texte">Aucun poste libre pour l\'instant.</div>';
+          : `<div class="petit-texte">Il faut 2 postes libres (un PC par équipe) — ${postesLibres.length} pour l'instant.</div>`;
         return `
           <div class="match-attente">
             ${enTete}
@@ -1496,10 +1524,16 @@
           </div>
         `;
       }
-      const posteEnCours = trouverPoste(m.posteId);
+      const nomPoste = id => { const p = trouverPoste(id); return p ? escapeHtml(p.nom) : ''; };
+      let lieuMatch = '';
+      if (m.posteIdA && m.posteIdB){
+        lieuMatch = ` <span class="petit-texte">· ${escapeHtml(nomEquipe(m.equipeA))} sur ${nomPoste(m.posteIdA)}, ${escapeHtml(nomEquipe(m.equipeB))} sur ${nomPoste(m.posteIdB)}</span>`;
+      } else if (m.posteId && nomPoste(m.posteId)){
+        lieuMatch = ` <span class="petit-texte">· sur ${nomPoste(m.posteId)}</span>`;
+      }
       return `
         <div class="match-attente">
-          ${enTete}${posteEnCours ? ` <span class="petit-texte">· sur ${escapeHtml(posteEnCours.nom)}</span>` : ''}
+          ${enTete}${lieuMatch}
           <div class="match-choix">
             <button class="small btn-declarer-vainqueur" data-match="${m.id}" data-vainqueur="${m.equipeA}">🏆 ${escapeHtml(nomEquipe(m.equipeA))}</button>
             <span class="petit-texte">vs</span>
@@ -1559,8 +1593,10 @@
     });
     carte.querySelectorAll('.btn-demarrer-match').forEach(b => {
       b.addEventListener('click', () => {
-        const select = carte.querySelector(`.select-poste-match[data-match="${b.dataset.match}"]`);
-        if (select && select.value) demarrerMatchTournoi(tournoi.id, b.dataset.match, select.value);
+        const choix = equipe => carte.querySelector(`.select-poste-match[data-match="${b.dataset.match}"][data-equipe="${equipe}"]`);
+        const selectA = choix('A');
+        const selectB = choix('B');
+        if (selectA && selectB) demarrerMatchTournoi(tournoi.id, b.dataset.match, selectA.value, selectB.value);
       });
     });
 
