@@ -601,6 +601,77 @@
   .mdp-actions button{ flex: 1; }
   .mdp-erreur{ color: var(--neon-pink); font-size: 0.85rem; margin-top: 10px; display: none; }
   .mdp-erreur.actif{ display: block; }
+
+  /* ===== REFONTE 2026-10-09 : plus simple à comprendre, plus belle ===== */
+  button:hover{ transform: none; border-color: var(--neon-cyan); filter: brightness(1.12); }
+  button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{ outline: 3px solid var(--neon-cyan); outline-offset: 2px; }
+
+  header{ border-bottom: none; box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
+  header::after{ content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: linear-gradient(90deg, var(--neon-purple), var(--neon-cyan), var(--neon-pink)); opacity: 0.75; }
+  .logo{ display: flex; flex-direction: column; line-height: 1.1; }
+  .logo small{ font-family: 'Rajdhani', sans-serif; font-size: 0.8rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin-top: 3px; -webkit-text-fill-color: var(--text-dim); color: var(--text-dim); }
+  .badge-connexion{ font-size: 0.85rem; padding: 8px 14px; }
+  button.gros{ min-height: 48px; padding: 12px 20px; font-size: 1.05rem; border-radius: 12px; border-width: 2px; }
+  .menu-plus{ position: relative; }
+  .menu-plus > summary{ list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 48px; padding: 12px 18px; font-weight: 700; font-size: 1.05rem; background: var(--card); border: 1px solid var(--border); border-radius: 12px; user-select: none; }
+  .menu-plus > summary::-webkit-details-marker{ display: none; }
+  .menu-plus[open] > summary{ border-color: var(--neon-cyan); }
+  .menu-plus-liste{ position: absolute; right: 0; top: calc(100% + 8px); z-index: 150; display: flex; flex-direction: column; gap: 6px; min-width: 270px; padding: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 40px rgba(0,0,0,0.55); }
+  .menu-plus-liste button{ width: 100%; text-align: left; min-height: 44px; }
+
+  .aide{ margin-bottom: 38px; border: 1px solid rgba(34,232,255,0.35); border-radius: 18px; background: linear-gradient(160deg, rgba(34,232,255,0.08), rgba(176,38,255,0.06)); padding: 4px 24px; }
+  .aide > summary{ cursor: pointer; list-style: none; font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.05rem; padding: 14px 0; }
+  .aide > summary::-webkit-details-marker{ display: none; }
+  .aide > summary::after{ content: "Masquer"; float: right; font-family: 'Rajdhani', sans-serif; font-size: 0.9rem; font-weight: 600; color: var(--text-dim); }
+  .aide:not([open]) > summary::after{ content: "Afficher"; }
+  .aide-etapes{ list-style: none; counter-reset: etape; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; padding: 4px 0 20px; }
+  .aide-etapes li{ counter-increment: etape; position: relative; padding-left: 48px; font-size: 1rem; line-height: 1.45; }
+  .aide-etapes li::before{ content: counter(etape); position: absolute; left: 0; top: 0; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-family: 'Orbitron', sans-serif; font-weight: 700; background: linear-gradient(135deg, var(--neon-purple), var(--neon-cyan)); color: #04040a; }
+  .aide-etapes b{ display: block; color: var(--neon-cyan); font-size: 1.05rem; }
+
+  section > h2{ font-size: 1.5rem; margin-bottom: 8px; flex-wrap: wrap; }
+  .soustitre{ margin: 0 0 20px; color: var(--text-dim); font-size: 1.02rem; max-width: 72ch; }
+  .petit-texte{ font-size: 0.9rem; }
+
+  input[type="text"], input[type="number"], select, textarea{ font-size: 1rem; padding: 11px 12px; border-radius: 10px; }
+  .poste{ position: relative; overflow: hidden; border-radius: 18px; padding: 22px 20px 16px; gap: 14px; background: linear-gradient(170deg, rgba(255,255,255,0.04), transparent 55%), var(--card); }
+  .poste::before{ content: ""; position: absolute; left: 0; top: 0; right: 0; height: 4px; background: rgba(43,255,136,0.6); }
+  .poste.statut-libre{ border-color: rgba(43,255,136,0.22); }
+  .poste.statut-encours::before{ background: var(--neon-cyan); box-shadow: 0 0 14px var(--neon-cyan); }
+  .poste.statut-pause::before{ background: var(--neon-orange); box-shadow: 0 0 14px var(--neon-orange); }
+  .poste-nom{ padding: 4px 2px; border-radius: 6px; font-size: 1.1rem; }
+  .badge{ font-size: 0.8rem; padding: 5px 12px; }
+  .badge::before{ content: "●"; margin-right: 6px; }
+  .badge.libre{ background: rgba(43,255,136,0.14); color: var(--neon-green); }
+  .poste .chrono{ font-size: 2.5rem; text-shadow: 0 0 18px currentColor; }
+  .poste .infos{ font-size: 1.05rem; }
+  .poste .infos strong{ font-size: 1.25rem; }
+  .poste-form label{ font-size: 1rem; color: var(--text); text-transform: none; letter-spacing: 0; font-weight: 600; }
+  .poste-actions button{ min-height: 50px; font-size: 1.05rem; border-radius: 12px; }
+  .poste-ecran{ font-size: 0.85rem; padding: 6px 12px; border-radius: 10px; }
+  .carte-ajout{ min-height: 170px; border-radius: 18px; font-size: 1.1rem; font-weight: 600; }
+
+  .carte-tournoi{ border-radius: 18px; padding: 22px 20px; background: linear-gradient(170deg, rgba(255,255,255,0.04), transparent 55%), var(--card); }
+  .tournoi-entete strong{ font-size: 1.1rem; }
+  .etape-aide{ background: rgba(34,232,255,0.09); border-left: 4px solid var(--neon-cyan); border-radius: 0 12px 12px 0; padding: 10px 14px; font-size: 1.02rem; font-weight: 600; }
+  .bracket-colonne h4{ font-size: 0.85rem; }
+  .equipe-tag{ font-size: 0.9rem; padding: 4px 12px; }
+  .match-attente{ border-radius: 12px; padding: 12px; background: rgba(255,255,255,0.025); }
+  .match-choix button, .match-demarrer-deux button{ font-size: 0.98rem; padding: 10px 16px; min-height: 44px; }
+  .bracket-colonne button{ font-size: 0.92rem; padding: 9px 12px; min-height: 42px; }
+
+  .historique-item{ border-radius: 14px; }
+  .vide{ text-align: center; padding: 28px; border: 2px dashed var(--border); border-radius: 16px; font-style: normal; }
+
+  @media (max-width: 640px){
+    .header-actions{ width: 100%; }
+    .header-actions .gros{ flex: 1 1 150px; }
+    .menu-plus{ position: static; }
+    .menu-plus-liste{ left: 4%; right: 4%; top: 100%; min-width: 0; }
+    .aide{ padding: 4px 16px; }
+    section > h2{ font-size: 1.3rem; }
+  }
+  @media (prefers-reduced-motion: reduce){ *{ transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
 </style>
 </head>
 <body>
@@ -634,43 +705,62 @@
 </div>
 
 <header>
-  <div class="logo">🕹️ FESTIVAL 2K27</div>
+  <div class="logo">🕹️ FESTIVAL 2K27<small>Gestion des parties</small></div>
   <div class="header-actions">
     <span id="badge-connexion" class="badge-connexion">● Chargement…</span>
-    <button id="btn-pause-annonce" class="pause-globale" title="Met en pause tous les postes en cours pour une annonce">⏸ Pause annonce</button>
-    <button id="btn-terminer-jeu" class="pause-globale changement" title="Choisis un jeu : termine toutes ses parties en cours et verrouille les postes pendant le changement">🏁 Terminer un jeu</button>
-    <button id="btn-stats" title="Voir un résumé des parties jouées">📊 Statistiques</button>
-    <button id="btn-export" title="Sauvegarder les données dans un fichier">⬇ Exporter</button>
-    <button id="btn-import" title="Recharger des données depuis un fichier">⬆ Importer</button>
-    <button id="btn-export-csv" title="Exporter l'historique en tableur (Excel, LibreOffice...)">📄 CSV</button>
-    <button id="btn-installer" hidden title="Installer l'application sur cet appareil">📲 Installer l'appli</button>
+    <button id="btn-pause-annonce" class="pause-globale gros" title="Met en pause tous les PC en cours pour faire une annonce. Reclique pour reprendre.">⏸ Pause annonce</button>
+    <button id="btn-terminer-jeu" class="pause-globale changement gros" title="Choisis un jeu : toutes ses parties en cours sont terminées et les PC se verrouillent le temps de changer de jeu.">🔄 Changer de jeu</button>
+    <details class="menu-plus">
+      <summary>⋯ Plus</summary>
+      <div class="menu-plus-liste">
+        <button id="btn-stats" title="Voir un résumé des parties jouées">📊 Statistiques</button>
+        <button id="btn-export" title="Sauvegarder toutes les données dans un fichier">⬇ Sauvegarder dans un fichier</button>
+        <button id="btn-import" title="Recharger des données depuis un fichier sauvegardé">⬆ Recharger un fichier</button>
+        <button id="btn-export-csv" title="Exporter l'historique en tableur (Excel, LibreOffice...)">📄 Historique pour Excel (CSV)</button>
+        <button id="btn-installer" hidden title="Installer l'application sur cet appareil">📲 Installer l'appli</button>
+      </div>
+    </details>
     <input type="file" id="fichier-import" accept="application/json">
   </div>
 </header>
 
 <main>
+  <details class="aide" id="aide-gestion" open>
+    <summary>👋 Comment ça marche ?</summary>
+    <ol class="aide-etapes">
+      <li><b>Lancer une partie</b>Sur un PC « Libre », choisis le jeu et qui joue, puis clique ▶ Démarrer. Le chrono part.</li>
+      <li><b>Faire une annonce</b>Clique ⏸ Pause annonce en haut : tous les PC se mettent en pause. Reclique pour reprendre.</li>
+      <li><b>Finir ou changer de jeu</b>Clique 🏁 Terminer sur un PC. Pour tout changer d'un coup, utilise 🔄 Changer de jeu.</li>
+      <li><b>Faire un tournoi</b>Crée-le plus bas, clique « Créer les matchs », démarre chaque match, puis clique l'équipe gagnante.</li>
+    </ol>
+  </details>
+
   <section>
-    <h2>Postes de jeu <span class="compte" id="compte-postes"></span></h2>
+    <h2>🖥️ Les PC de jeu <span class="compte" id="compte-postes"></span></h2>
+    <p class="soustitre">Un PC = une carte. Vert : libre. Bleu : une partie est en cours. Orange : en pause.</p>
     <div class="grille-postes" id="grille-postes"></div>
   </section>
 
   <section id="section-tournois">
-    <h2>🏆 Tournois <span class="compte" id="compte-tournois"></span> <span class="petit-texte">(bracket gagnants/perdants — perdre ne t'élimine pas tout de suite, ça te fait juste changer de bracket)</span></h2>
+    <h2>🏆 Tournois <span class="compte" id="compte-tournois"></span></h2>
+    <p class="soustitre">Chaque équipe joue sur son propre PC. Une équipe est éliminée à sa 2e défaite : la 1re défaite lui donne une seconde chance.</p>
     <div class="grille-tournois" id="grille-tournois"></div>
   </section>
 
   <section id="section-ecrans">
-    <h2>Écrans en direct <span class="petit-texte">(aperçu toutes les 10s pendant une partie — la connexion du PC est toujours affichée)</span></h2>
+    <h2>📺 Écrans en direct</h2>
+    <p class="soustitre">Un aperçu de l'écran de chaque PC, mis à jour toutes les 10 secondes pendant une partie. L'étiquette indique si le PC est connecté.</p>
     <div class="grille-ecrans" id="grille-ecrans"></div>
   </section>
 
   <section>
-    <h2>Historique des parties <span class="compte" id="compte-historique"></span></h2>
+    <h2>📜 Historique des parties <span class="compte" id="compte-historique"></span></h2>
+    <p class="soustitre">Les parties terminées, de la plus récente à la plus ancienne.</p>
     <div class="historique-liste" id="historique-liste"></div>
   </section>
 </main>
 
-<footer>Festival 2K27 — outil de gestion des parties, données stockées sur cet appareil.</footer>
+<footer>Festival 2K27 — gestion des parties. Quand l'étiquette en haut est verte, les données sont partagées entre tous les appareils connectés. Sinon, elles restent sur cet appareil.</footer>
 
 <div class="overlay cache" id="overlay-terminer">
   <div class="modale">
@@ -1336,7 +1426,7 @@
     });
     const eligibles = tournoi.equipes.filter(e => e.statut === bracket && !enAttente.has(e.id));
     if (eligibles.length < 2){
-      alert(`Pas assez d'équipes disponibles côté ${bracket === 'gagnants' ? 'Gagnants' : 'Perdants'} pour lancer un tour (il en faut au moins 2 qui ne jouent pas déjà).`);
+      alert("Pas assez d'équipes pour créer des matchs ici : il en faut au moins 2 qui ne jouent pas déjà.");
       return;
     }
     // Tirage au sort simple : pas de classement/tete de serie prealable a gerer.
@@ -1498,7 +1588,7 @@
     const postesLibres = etat.postes.filter(p => p.statut === 'libre');
 
     const matchsAttenteHtml = enAttente.map(m => {
-      const enTete = `<span class="petit-texte">${m.bracket === 'finale' ? '🏆 Finale' : (m.bracket === 'gagnants' ? 'Gagnants' : 'Perdants') + ' — Tour ' + m.tour}</span>`;
+      const enTete = `<span class="petit-texte">${m.bracket === 'finale' ? '🏆 Finale' : (m.bracket === 'gagnants' ? 'Équipes invaincues' : 'Équipes battues une fois') + ' — tour ' + m.tour}</span>`;
       if (!postesDuMatch(m).length){
         // Pas encore assigne : chaque equipe joue sur son propre PC, il faut donc
         // choisir deux postes libres pour pouvoir jouer ce match (ça lance vraiment le
@@ -1541,40 +1631,50 @@
           </div>
         </div>
       `;
-    }).join('') || '<div class="petit-texte">Aucun match en attente.</div>';
+    }).join('') || '<div class="petit-texte">Aucun match pour le moment.</div>';
 
     const historiqueHtml = termines.map(m => {
       if (m.bye) return `<div>${escapeHtml(nomEquipe(m.equipeA))} — exempté(e) (qualifié(e) sans jouer)</div>`;
-      const bracketTxt = m.bracket === 'finale' ? 'Finale' : (m.bracket === 'gagnants' ? 'Gagnants' : 'Perdants');
+      const bracketTxt = m.bracket === 'finale' ? 'Finale' : (m.bracket === 'gagnants' ? 'Invaincues' : 'Battues une fois');
       return `<div>[${bracketTxt}] ${escapeHtml(nomEquipe(m.equipeA))} vs ${escapeHtml(nomEquipe(m.equipeB))} → <strong>${escapeHtml(nomEquipe(m.vainqueur))}</strong></div>`;
     }).join('');
 
     const peutFinale = tournoiPeutLancerFinale(tournoi);
 
+    // Une phrase qui dit quoi faire maintenant (affichage seulement).
+    const matchsNonDemarres = enAttente.filter(m => !postesDuMatch(m).length);
+    const matchsEnCours = enAttente.filter(m => postesDuMatch(m).length);
+    let aideEtape = "Étape 1 : clique « Créer les matchs » pour tirer au sort les premières rencontres.";
+    if (matchsNonDemarres.length && matchsEnCours.length) aideEtape = "Démarre les autres matchs (un PC par équipe), et clique sur l'équipe gagnante quand un match est fini.";
+    else if (matchsNonDemarres.length) aideEtape = "Étape 2 : choisis un PC pour chaque équipe, puis clique ▶ Démarrer.";
+    else if (matchsEnCours.length) aideEtape = "Étape 3 : quand un match est fini, clique sur l'équipe qui a gagné.";
+    else if (peutFinale) aideEtape = "Dernière étape : clique « Lancer la finale ».";
+
     carte.innerHTML = `
       <div class="tournoi-entete">
         <strong>${escapeHtml(tournoi.nom)}</strong>
-        <button class="small danger btn-suppr-tournoi" title="Supprimer ce tournoi">🗑</button>
+        <button class="small danger btn-suppr-tournoi" title="Supprimer ce tournoi" aria-label="Supprimer ce tournoi">🗑</button>
       </div>
       <div class="petit-texte">${escapeHtml(jeuAffichageTournoi(tournoi) || 'Jeu non précisé')} · ${tournoi.equipes.length} équipe(s)</div>
       ${tournoi.termine
         ? `<div class="tournoi-vainqueur">🏆 Vainqueur : ${escapeHtml(nomEquipe(tournoi.vainqueurFinal))}</div>`
         : `
+        <div class="etape-aide">${aideEtape}</div>
         <div class="tournoi-brackets">
           <div class="bracket-colonne">
-            <h4>Gagnants</h4>
+            <h4>Équipes invaincues</h4>
             <div>${listeEquipes(gagnants)}</div>
-            <button class="small btn-generer-tour" data-bracket="gagnants">Générer un tour</button>
+            <button class="small btn-generer-tour" data-bracket="gagnants">🎲 Créer les matchs</button>
           </div>
           <div class="bracket-colonne">
-            <h4>Perdants</h4>
+            <h4>Battues une fois</h4>
             <div>${listeEquipes(perdants)}</div>
-            <button class="small btn-generer-tour" data-bracket="perdants">Générer un tour</button>
+            <button class="small btn-generer-tour" data-bracket="perdants">🎲 Créer les matchs</button>
           </div>
         </div>
         ${peutFinale ? `<button class="btn-lancer-finale primary">🏆 Lancer la finale</button>` : ''}
         <div class="tournoi-matchs">
-          <h4>Matchs en attente</h4>
+          <h4>Matchs à jouer</h4>
           ${matchsAttenteHtml}
         </div>
         `}
@@ -1610,7 +1710,7 @@
 
     const carteAjout = document.createElement('div');
     carteAjout.className = 'carte-ajout';
-    carteAjout.textContent = '+ Nouveau tournoi';
+    carteAjout.textContent = '+ Créer un tournoi';
     carteAjout.addEventListener('click', ouvrirNouveauTournoi);
     grille.appendChild(carteAjout);
 
@@ -1638,18 +1738,18 @@
           <button class="lien-debloquer-pc">Débloquer sans démarrer</button>
         </div>` : ''}
         <div class="poste-form">
-          <label>Jeu</label>
+          <label>À quoi on joue ?</label>
           <select class="champ-jeu">
-            <option value="">-- Choisir --</option>
+            <option value="">Choisis un jeu…</option>
             ${optionsJeu}
             <option value="Autre">Autre...</option>
           </select>
           <input type="text" class="champ-jeu-autre" placeholder="Précise le jeu" style="display:none;">
-          <label>Joueur(s)</label>
-          <input type="text" class="champ-joueurs" placeholder="Ex : Alice, Bob">
+          <label>Qui joue ?</label>
+          <input type="text" class="champ-joueurs" placeholder="Ex : Alice et Bob">
         </div>
         <div class="poste-actions">
-          <button class="primary btn-demarrer">▶ Démarrer</button>
+          <button class="primary btn-demarrer">▶ Démarrer la partie</button>
         </div>
       `;
     } else {
@@ -1673,8 +1773,8 @@
       </div>
       ${contenuAction}
       <div class="poste-pied">
-        <button class="poste-ecran" title="Ouvrir l'écran de pause de ce poste (à afficher sur son PC)">🔒 Écran</button>
-        <button class="poste-suppr" title="Supprimer ce poste">🗑</button>
+        <button class="poste-ecran" title="Ouvre l'écran de pause de ce PC (à afficher sur ce PC)">🔒 Écran de pause</button>
+        <button class="poste-suppr" title="Supprimer ce PC" aria-label="Supprimer ce PC">🗑</button>
       </div>
     `;
 
@@ -1729,12 +1829,12 @@
 
     const carteAjout = document.createElement('div');
     carteAjout.className = 'carte-ajout';
-    carteAjout.textContent = '+ Ajouter un poste';
+    carteAjout.textContent = '+ Ajouter un PC';
     carteAjout.addEventListener('click', ajouterPoste);
     grille.appendChild(carteAjout);
 
     document.getElementById('compte-postes').textContent =
-      `(${etat.postes.filter(p => p.statut !== 'libre').length} occupé(s) / ${etat.postes.length})`;
+      `· ${etat.postes.filter(p => p.statut === 'libre').length} libre(s) · ${etat.postes.filter(p => p.statut === 'encours').length} en cours · ${etat.postes.filter(p => p.statut === 'pause').length} en pause`;
 
     renderTournois();
 
@@ -1757,7 +1857,7 @@
               <div class="resultat">${escapeHtml(h.resultat)}</div>
               <div class="duree">${formatDuree(h.dureeMs)}</div>
             </div>
-            <button class="small danger btn-suppr-hist" title="Supprimer cette entrée">🗑</button>
+            <button class="small danger btn-suppr-hist" title="Supprimer cette entrée" aria-label="Supprimer cette entrée">🗑</button>
           </div>
         `;
         item.querySelector('.btn-suppr-hist').addEventListener('click', () => supprimerHistorique(h.id));
@@ -2076,5 +2176,22 @@
 })();
 </script>
 
+
+<script>
+  (function(){
+    var aide = document.getElementById('aide-gestion');
+    if (aide){
+      try{ if (localStorage.getItem('2k27_gestion_aide_ouverte') === 'non') aide.open = false; }catch(e){}
+      aide.addEventListener('toggle', function(){
+        try{ localStorage.setItem('2k27_gestion_aide_ouverte', aide.open ? 'oui' : 'non'); }catch(e){}
+      });
+    }
+    var menu = document.querySelector('.menu-plus');
+    if (menu){
+      menu.querySelectorAll('button').forEach(function(b){ b.addEventListener('click', function(){ menu.open = false; }); });
+      document.addEventListener('click', function(ev){ if (menu.open && !menu.contains(ev.target)) menu.open = false; });
+    }
+  })();
+</script>
 </body>
 </html>
