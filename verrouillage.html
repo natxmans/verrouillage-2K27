@@ -139,15 +139,49 @@
     color: var(--text-dim);
     opacity: 0.6;
   }
+
+  /* ===== REFONTE 2026-10-09 : lisible de loin, plus clair, plus beau ===== */
+  html, body{
+    background:
+      radial-gradient(circle at 50% 40%, rgba(255,176,32,0.07), transparent 55%),
+      radial-gradient(circle at 12% 88%, rgba(176,38,255,0.14), transparent 45%),
+      #04040a;
+  }
+  .overlay-pause{
+    background:
+      radial-gradient(circle at 50% 42%, rgba(255,176,32,0.16), transparent 58%),
+      radial-gradient(circle at 88% 92%, rgba(34,232,255,0.10), transparent 45%),
+      radial-gradient(circle at 10% 10%, rgba(176,38,255,0.12), transparent 40%),
+      #04040a;
+  }
+  .icone{
+    width: 11rem; height: 11rem; display: grid; place-items: center; font-size: 6rem; line-height: 1;
+    border-radius: 50%;
+    border: 4px solid rgba(255,176,32,0.6);
+    box-shadow: 0 0 60px rgba(255,176,32,0.35), inset 0 0 40px rgba(255,176,32,0.15);
+  }
+  h1{ text-shadow: 0 0 40px rgba(255,176,32,0.55); }
+  .sous{ font-size: clamp(1.4rem, 4vw, 2.2rem); color: var(--text); max-width: 26ch; line-height: 1.3; }
+  .etat-neutre{ gap: 14px; padding: 0 24px; text-align: center; }
+  .etat-neutre .statut{ font-size: clamp(2.6rem, 8vw, 4.6rem); letter-spacing: 4px; text-shadow: 0 0 36px rgba(34,232,255,0.5); }
+  .etat-neutre .nom{ font-size: clamp(1.4rem, 4vw, 2.2rem); color: var(--text); }
+  .etat-neutre .conseil{ font-size: clamp(1.1rem, 3vw, 1.6rem); color: var(--text-dim); max-width: 28ch; }
+  .pied-marque{
+    position: fixed; bottom: 60px; left: 0; right: 0; text-align: center; z-index: 5;
+    font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.95rem; letter-spacing: 4px; color: var(--text-dim); opacity: 0.7;
+  }
+  .rappel{ opacity: 0.75; }
+  @media (prefers-reduced-motion: reduce){ .icone{ animation: none; } }
 </style>
 </head>
 <body>
 
 <div id="app"></div>
+<div class="pied-marque">GAMING TOUSSAINT 2026</div>
 
 <div class="barre-bas">
   <button id="btn-plein-ecran">⛶ Plein écran</button>
-  <span class="rappel">Laisse cette fenêtre au premier plan sur ce poste</span>
+  <span class="rappel">Laisse cette fenêtre au premier plan sur ce PC</span>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -208,15 +242,15 @@
 
   function render(poste){
     if (!poste){
-      afficherErreur(`Poste "${nomPoste}" introuvable. Vérifie l'orthographe dans le lien (?poste=...) — elle doit correspondre exactement au nom du poste dans l'outil de gestion.`);
+      afficherErreur(`Ce PC n'est pas reconnu : « ${nomPoste} ». Vérifie que le nom dans le lien (après ?poste=) est écrit exactement comme dans la gestion des parties.`);
       return;
     }
     const verrouille = poste.statut === 'pause' || poste.pauseRaison === 'changement';
     if (verrouille){
       if (!etaitVerrouille) jouerBip();
       const sousTitre = poste.pauseRaison === 'changement'
-        ? 'Changement de jeu en cours — merci de patienter'
-        : 'Annonce en cours — merci de patienter';
+        ? 'Changement de jeu : on revient dans un instant !'
+        : 'Annonce en cours : on pose la souris et on écoute !';
       app.innerHTML = `
         <div class="nom-poste">${escapeHtml(poste.nom)}</div>
         <div class="overlay-pause">
@@ -229,8 +263,9 @@
       app.innerHTML = `
         <div class="nom-poste">${escapeHtml(poste.nom)}</div>
         <div class="etat-neutre">
-          <div class="statut">${poste.statut === 'libre' ? 'LIBRE' : 'EN COURS'}</div>
+          <div class="statut">${poste.statut === 'libre' ? 'PC LIBRE' : 'EN COURS'}</div>
           <div class="nom">${escapeHtml(poste.jeu || '')}</div>
+          <div class="conseil">${poste.statut === 'libre' ? 'Demande à un animateur pour jouer.' : 'Bonne partie !'}</div>
         </div>
       `;
     }
@@ -238,7 +273,7 @@
   }
 
   if (!nomPoste){
-    afficherErreur('Ajoute le nom du poste dans le lien, par exemple : verrouillage.html?poste=PC%201');
+    afficherErreur('Il manque le nom du PC dans le lien. Exemple : verrouillage.html?poste=Poste%201');
   } else {
     try{
       firebase.initializeApp(FIREBASE_CONFIG);
@@ -250,10 +285,10 @@
           const poste = postes.find(p => p && p.nom && p.nom.trim().toLowerCase() === nomPoste.toLowerCase());
           render(poste);
         }, erreur => {
-          afficherErreur('Connexion impossible : ' + erreur.message);
+          afficherErreur('Connexion impossible. Vérifie la connexion internet de ce PC. (' + erreur.message + ')');
         });
       }).catch(erreur => {
-        afficherErreur('Connexion impossible : ' + erreur.message);
+        afficherErreur('Connexion impossible. Vérifie la connexion internet de ce PC. (' + erreur.message + ')');
       });
     }catch(e){
       afficherErreur('Erreur de configuration Firebase : ' + e.message);
