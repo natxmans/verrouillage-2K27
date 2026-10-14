@@ -686,7 +686,8 @@
 </div>
 <script>
   try{
-    if (localStorage.getItem('2k27_gestion_debloque') === 'oui'){
+    localStorage.removeItem('2k27_gestion_debloque'); // ancienne mémoire (avant le 14 oct. 2026) : tous les appareils sont reverrouillés
+    if (localStorage.getItem('2k27_gestion_debloque_v2') === 'oui'){
       document.getElementById('gate-acces').classList.add('cache');
     }
   }catch(e){}
@@ -2074,11 +2075,12 @@
   });
   // Verrou d'acces : Ctrl+Maj+Q ouvre l'invite de code (code propre a cet outil, different
   // de celui de verrou_poste.py depuis le 7 oct. 2026, sensible a la casse), memorise sur
-  // cet appareil une fois debloque. Outil
+  // cet appareil une fois debloque (cle « _v2 » depuis le 14 oct. 2026 : changer le nom de la cle
+  // reverrouille d'un coup tous les appareils, code « Nathan » depuis cette date). Outil
   // interne herberge sur une URL publique (GitHub Pages) : sans ce verrou, n'importe
   // qui tombant sur le lien pourrait manipuler les postes/verrous en direct pendant
   // le festival.
-  const MOT_DE_PASSE_ACCES = 'ZKZ7';
+  const MOT_DE_PASSE_ACCES = 'Nathan';
   const gateAcces = document.getElementById('gate-acces');
   const overlayMdpAcces = document.getElementById('overlay-mdp-acces');
   const champMdpAcces = document.getElementById('champ-mdp-acces');
@@ -2090,7 +2092,7 @@
   function validerMdpAcces(){
     if (champMdpAcces.value === MOT_DE_PASSE_ACCES){
       gateAcces.classList.add('cache');
-      try{ localStorage.setItem('2k27_gestion_debloque', 'oui'); }catch(e){}
+      try{ localStorage.setItem('2k27_gestion_debloque_v2', 'oui'); }catch(e){}
       fermerMdpAcces();
     } else {
       mdpAccesErreur.classList.add('actif');
@@ -2101,7 +2103,7 @@
   // en partant du poste, sans devoir se souvenir du code juste pour le reactiver.
   function reverrouillerAcces(){
     gateAcces.classList.remove('cache');
-    try{ localStorage.removeItem('2k27_gestion_debloque'); }catch(e){}
+    try{ localStorage.removeItem('2k27_gestion_debloque_v2'); }catch(e){}
   }
   function ouvrirMdpAcces(){
     mdpAccesErreur.classList.remove('actif');
