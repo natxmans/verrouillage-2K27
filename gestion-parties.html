@@ -335,6 +335,31 @@
   }
   .poste.statut-encours .chrono{ color: var(--neon-cyan); }
   .poste.statut-pause .chrono{ color: var(--neon-orange); }
+  .poste .chrono-legende{
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: -6px;
+  }
+  /* Minuteur de 10 min : une fois ecoule, la carte demande si la partie est finie */
+  .poste .chrono.temps-ecoule{ color: var(--neon-pink); animation: clignote-temps 1.2s ease-in-out infinite; }
+  .poste.minuteur-attente .chrono.temps-ecoule{ color: var(--neon-orange); animation: none; }
+  @keyframes clignote-temps{ 50%{ opacity: 0.5; } }
+  .alerte-temps, .attente-fin{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+  }
+  .alerte-temps{ background: rgba(255,46,136,0.12); border: 1px solid var(--neon-pink); }
+  .attente-fin{ background: rgba(255,153,0,0.1); border: 1px solid var(--neon-orange); }
+  .alerte-titre{ font-weight: 700; }
+  .alerte-boutons{ display: flex; gap: 8px; }
+  .alerte-boutons button, .attente-fin button{ flex: 1; min-height: 44px; }
 
   .poste .infos{
     font-size: 0.9rem;
@@ -729,7 +754,7 @@
   <details class="aide" id="aide-gestion" open>
     <summary>👋 Comment ça marche ?</summary>
     <ol class="aide-etapes">
-      <li><b>Lancer une partie</b>Sur un PC « Libre », choisis le jeu et qui joue, puis clique ▶ Démarrer. Le chrono part.</li>
+      <li><b>Lancer une partie</b>Sur un PC « Libre », choisis le jeu et qui joue, puis clique ▶ Démarrer. Un minuteur de 10 min part : à zéro, l'outil demande si la partie est terminée (Oui = on coupe, Non = on attend la fin et on redemande 2 min plus tard).</li>
       <li><b>Faire une annonce</b>Clique ⏸ Pause annonce en haut : tous les PC se mettent en pause. Reclique pour reprendre.</li>
       <li><b>Finir ou changer de jeu</b>Clique 🏁 Terminer sur un PC. Pour tout changer d'un coup, utilise 🔄 Changer de jeu.</li>
       <li><b>Faire un tournoi</b>Crée-le plus bas, clique « Créer les matchs », démarre chaque match, puis clique l'équipe gagnante.</li>
@@ -810,7 +835,7 @@
     <h3>🏆 Nouveau tournoi</h3>
     <div class="poste-form">
       <label>Nom du tournoi</label>
-      <input type="text" id="champ-nom-tournoi" placeholder="Ex : Tournoi Fortnite">
+      <input type="text" id="champ-nom-tournoi" placeholder="Ex : Tournoi Trackmania">
       <label>Jeu</label>
       <select id="champ-jeu-tournoi"></select>
       <input type="text" id="champ-jeu-autre-tournoi" placeholder="Précise le jeu" style="display:none;">
@@ -835,7 +860,7 @@
   // uniquement les jeux PC, car cet outil ne gere/verrouille que les postes PC
   // (verrou_poste.py). Les autres jeux (Switch, PS4, scene, smartphone) se saisissent
   // via "Autre" en texte libre sur leur poste respectif.
-  const JEUX_DISPONIBLES = ['World of Padman', 'Trackmania', 'Fortnite', 'Valorant'];
+  const JEUX_DISPONIBLES = ['World of Padman', 'Trackmania'];
   // PEGI confirmes dans le plan (les autres jeux sont encore en cours d'evaluation par
   // l'equipe + le SAJ, voir memoire du projet) : affiche juste un rappel visuel, ne
   // remplace pas la verification du badge par l'animateur de chaque espace.
@@ -1032,6 +1057,58 @@
     if (poste.statut === 'libre' || !poste.debut) return 0;
     const reference = poste.statut === 'pause' ? poste.pauseDepuis : Date.now();
     return reference - poste.debut - poste.pausedMs;
+  }
+
+  // Minuteur de 10 min par partie. A zero, la carte demande a l'animateur si la partie
+  // est terminee : "oui" = on coupe (meme chemin que le bouton Terminer), "non" = on
+  // attend la fin et on redemande apres RAPPEL_ATTENTE_MS. L'attente n'est valable que
+  // pour la partie en cours (attenteDebut === debut), donc une nouvelle partie repart a zero.
+  const DUREE_MINUTEUR_MS = 10 * 60 * 1000;
+  const RAPPEL_ATTENTE_MS = 2 * 60 * 1000;
+
+  function minuteurRestantMs(poste){
+    return DUREE_MINUTEUR_MS - elapsedPoste(poste);
+  }
+
+  function etatMinuteur(poste){
+    if (poste.statut === 'libre' || !poste.debut) return 'aucun';
+    if (minuteurRestantMs(poste) > 0) return 'courant';
+    if (poste.attenteDebut === poste.debut && Date.now() < (poste.attenteJusqua || 0)) return 'attente';
+    return 'demande';
+  }
+
+  function affichageMinuteur(poste){
+    const restant = minuteurRestantMs(poste);
+    if (restant > 0){
+      return { texte: formatDuree(Math.ceil(restant / 1000) * 1000), legende: 'temps restant', depasse: false };
+    }
+    return { texte: '+' + formatDuree(-restant), legende: 'temps dépassé · partie : ' + formatDuree(elapsedPoste(poste)), depasse: true };
+  }
+
+  function attendreFinPartie(id){
+    const poste = trouverPoste(id);
+    if (!poste || !poste.debut) return;
+    poste.attenteDebut = poste.debut;
+    poste.attenteJusqua = Date.now() + RAPPEL_ATTENTE_MS;
+    sauvegarder();
+    render();
+  }
+
+  function jouerBipMinuteur(){
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ctx = new AC();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = 880;
+      gain.gain.value = 0.15;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+      setTimeout(() => { ctx.close().catch(() => {}); }, 700);
+    }catch(e){}
   }
 
   function trouverPoste(id){
@@ -1257,6 +1334,8 @@
     poste.pausedMs = 0;
     poste.statut = 'libre';
     poste.pauseDepuis = null;
+    poste.attenteDebut = null;
+    poste.attenteJusqua = null;
     poste.pauseRaison = 'changement';
     etat.globalPausedIds = etat.globalPausedIds.filter(pid => pid !== id);
   }
@@ -1754,12 +1833,31 @@
         </div>
       `;
     } else {
+      const etatTemps = etatMinuteur(poste);
+      const minuteur = affichageMinuteur(poste);
+      div.dataset.posteId = poste.id;
+      div.dataset.minuteur = etatTemps;
+      div.classList.add('minuteur-' + etatTemps);
+      const blocTemps = etatTemps === 'demande' ? `
+        <div class="alerte-temps">
+          <div class="alerte-titre">⏰ 10 min écoulées : la partie est-elle terminée ?</div>
+          <div class="alerte-boutons">
+            <button class="primary btn-oui-couper">✅ Oui, couper</button>
+            <button class="btn-non-attendre">⏳ Non, j'attends</button>
+          </div>
+        </div>` : etatTemps === 'attente' ? `
+        <div class="attente-fin">
+          <div>⏳ On attend la fin de la partie · on redemande dans <b class="rappel-txt">${formatDuree(Math.ceil((poste.attenteJusqua - Date.now()) / 1000) * 1000)}</b></div>
+          <button class="primary btn-oui-couper">✅ Terminée : couper</button>
+        </div>` : '';
       contenuAction = `
-        <div class="chrono">${formatDuree(elapsedPoste(poste))}</div>
+        <div class="chrono${minuteur.depasse ? ' temps-ecoule' : ''}">${minuteur.texte}</div>
+        <div class="chrono-legende">${minuteur.legende}</div>
         <div class="infos">
           <strong>${escapeHtml(poste.jeu) || 'Jeu non précisé'}</strong>${pegiActif ? ` <span class="badge-pegi">PEGI ${pegiActif}</span>` : ''}<br>
           ${escapeHtml(poste.joueurs) || 'Joueur(s) non précisé(s)'}
         </div>
+        ${blocTemps}
         <div class="poste-actions">
           <button class="btn-pause">${poste.statut === 'pause' ? '▶ Reprendre' : '⏸ Pause'}</button>
           <button class="primary btn-terminer">🏁 Terminer</button>
@@ -1802,10 +1900,15 @@
       });
     } else {
       div.querySelector('.btn-pause').addEventListener('click', () => togglePause(poste.id));
-      div.querySelector('.btn-terminer').addEventListener('click', () => {
+      const demanderFin = () => {
         fileTerminerGroupe = [poste.id];
         traiterProchainTerminerGroupe();
-      });
+      };
+      div.querySelector('.btn-terminer').addEventListener('click', demanderFin);
+      const btnCouper = div.querySelector('.btn-oui-couper');
+      if (btnCouper) btnCouper.addEventListener('click', demanderFin);
+      const btnAttendre = div.querySelector('.btn-non-attendre');
+      if (btnAttendre) btnAttendre.addEventListener('click', () => attendreFinPartie(poste.id));
     }
 
     return div;
@@ -2163,10 +2266,23 @@
 
   setInterval(() => {
     if (!etat) return;
-    document.querySelectorAll('.poste:not(.statut-libre) .chrono').forEach((el, i) => {
-      const postesActifs = etat.postes.filter(p => p.statut !== 'libre');
-      const poste = postesActifs[i];
-      if (poste) el.textContent = formatDuree(elapsedPoste(poste));
+    document.querySelectorAll('.poste[data-poste-id]').forEach(carte => {
+      const poste = trouverPoste(carte.dataset.posteId);
+      if (!poste || poste.statut === 'libre') return;
+      const etatTemps = etatMinuteur(poste);
+      if (etatTemps !== carte.dataset.minuteur){
+        // le minuteur change de phase (courant -> demande -> attente...) : on refait seulement cette carte
+        carte.replaceWith(creerCartePoste(poste));
+        if (etatTemps === 'demande') jouerBipMinuteur();
+        return;
+      }
+      const minuteur = affichageMinuteur(poste);
+      const chrono = carte.querySelector('.chrono');
+      if (chrono) chrono.textContent = minuteur.texte;
+      const legende = carte.querySelector('.chrono-legende');
+      if (legende) legende.textContent = minuteur.legende;
+      const rappel = carte.querySelector('.rappel-txt');
+      if (rappel) rappel.textContent = formatDuree(Math.ceil((poste.attenteJusqua - Date.now()) / 1000) * 1000);
     });
   }, 1000);
 
