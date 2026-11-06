@@ -1,0 +1,3059 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Festival 2K27 — Gestion des parties</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0a0a14">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gestion 2K27">
+<script>
+  // le navigateur propose l'installation très tôt : on garde l'événement pour le bouton « Installer »
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    window.__evtInstall = e;
+    if (window.__majInstall) window.__majInstall();
+  });
+</script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕹️</text></svg>">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg: #0a0a14;
+    --bg-alt: #10101c;
+    --card: #14141f;
+    --card-hover: #191926;
+    --neon-purple: #b026ff;
+    --neon-cyan: #22e8ff;
+    --neon-pink: #ff2e88;
+    --neon-green: #2bff88;
+    --neon-orange: #ffb020;
+    --text: #e8e8f5;
+    --text-dim: #9494b0;
+    --border: rgba(255,255,255,0.1);
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+
+  html{ scroll-behavior: smooth; }
+
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 18px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, .logo{ font-family: 'Orbitron', sans-serif; }
+
+  body::before{
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(176,38,255,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(176,38,255,0.06) 1px, transparent 1px);
+    background-size: 45px 45px;
+    z-index: -2;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+  }
+
+  body::after{
+    content:"";
+    position: fixed;
+    inset:0;
+    background: radial-gradient(circle at 15% 20%, rgba(176,38,255,0.15), transparent 45%),
+                radial-gradient(circle at 85% 75%, rgba(34,232,255,0.12), transparent 45%);
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  ::selection{ background: var(--neon-purple); color: #fff; }
+
+  ::-webkit-scrollbar{ width: 10px; }
+  ::-webkit-scrollbar-track{ background: var(--bg); }
+  ::-webkit-scrollbar-thumb{
+    background: linear-gradient(var(--neon-purple), var(--neon-cyan));
+    border-radius: 10px;
+  }
+
+  header{
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 18px 5%;
+    background: rgba(10,10,20,0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo{
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    white-space: nowrap;
+  }
+
+  .header-actions{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .badge-connexion{
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: rgba(148,148,176,0.15);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .badge-connexion.connecte{ background: rgba(43,255,136,0.15); color: var(--neon-green); }
+  .badge-connexion.solo{ background: rgba(255,176,32,0.15); color: var(--neon-orange); }
+  .badge-connexion.erreur{ background: rgba(255,46,136,0.15); color: var(--neon-pink); }
+
+  button{
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    padding: 9px 16px;
+    border-radius: 8px;
+    transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  }
+  button:hover{ transform: translateY(-1px); border-color: var(--neon-cyan); }
+  button:active{ transform: translateY(0); }
+
+  button.primary{
+    background: linear-gradient(90deg, var(--neon-purple), var(--neon-cyan));
+    color: #04040a;
+    border: none;
+    font-weight: 700;
+  }
+  button.pause-globale{
+    border-color: var(--neon-orange);
+    color: var(--neon-orange);
+  }
+  button.pause-globale.active{
+    background: var(--neon-orange);
+    color: #04040a;
+    box-shadow: 0 0 18px rgba(255,176,32,0.5);
+  }
+  button.pause-globale.changement{
+    border-color: var(--neon-pink);
+    color: var(--neon-pink);
+  }
+  button.pause-globale.changement.active{
+    background: var(--neon-pink);
+    color: #04040a;
+    box-shadow: 0 0 18px rgba(255,46,136,0.5);
+  }
+  button.danger{ border-color: var(--neon-pink); color: var(--neon-pink); }
+  button.small{ padding: 6px 12px; font-size: 0.85rem; }
+  button:disabled{ opacity: 0.4; cursor: not-allowed; transform:none; }
+
+  input[type="text"], input[type="number"], select, textarea{
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.95rem;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    width: 100%;
+  }
+  textarea{ resize: vertical; font-family: inherit; }
+  input:focus, select:focus, textarea:focus{ outline: none; border-color: var(--neon-cyan); }
+
+  main{
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 5% 100px;
+  }
+
+  section{ margin-bottom: 50px; }
+
+  section > h2{
+    font-size: 1.3rem;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  section > h2 .compte{
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+  }
+
+  .grille-postes{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px;
+  }
+
+  .petit-texte{
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 500;
+  }
+  .grille-ecrans{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px;
+  }
+  .carte-ecran{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .carte-ecran .nom-ecran{
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    color: var(--neon-cyan);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .etat-connexion-poste{
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .etat-connexion-poste.connecte{ background: rgba(43,255,136,0.15); color: var(--neon-green); }
+  .etat-connexion-poste.hors-ligne{ background: rgba(255,46,136,0.15); color: var(--neon-pink); }
+  .etat-connexion-poste.jamais{ background: rgba(148,148,176,0.15); color: var(--text-dim); }
+  .carte-ecran img{
+    width: 100%;
+    border-radius: 8px;
+    background: var(--bg-alt);
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    cursor: pointer;
+  }
+  .carte-ecran .etat-ecran{
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  .poste{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .poste.statut-encours{ border-color: rgba(34,232,255,0.5); box-shadow: 0 0 20px rgba(34,232,255,0.12); }
+  .poste.statut-pause{ border-color: rgba(255,176,32,0.5); box-shadow: 0 0 20px rgba(255,176,32,0.1); }
+
+  .poste-entete{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .poste-nom{
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    width: auto;
+    flex: 1;
+    padding: 4px 2px;
+  }
+  .poste-nom:focus{ outline: none; border-bottom: 1px solid var(--neon-cyan); }
+
+  .badge{
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .badge.libre{ background: rgba(148,148,176,0.15); color: var(--text-dim); }
+  .badge.encours{ background: rgba(34,232,255,0.15); color: var(--neon-cyan); }
+  .badge.pause{ background: rgba(255,176,32,0.15); color: var(--neon-orange); }
+  .badge-pegi{
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+    background: rgba(255,46,136,0.15);
+    color: var(--neon-pink);
+  }
+
+  .poste .chrono{
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.8rem;
+    text-align: center;
+    letter-spacing: 2px;
+    padding: 6px 0;
+  }
+  .poste.statut-encours .chrono{ color: var(--neon-cyan); }
+  .poste.statut-pause .chrono{ color: var(--neon-orange); }
+  .poste .chrono-legende{
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: -6px;
+  }
+  /* Minuteur de 10 min : une fois ecoule, la carte demande si la partie est finie */
+  .poste .chrono.temps-ecoule{ color: var(--neon-pink); animation: clignote-temps 1.2s ease-in-out infinite; }
+  .poste.minuteur-attente .chrono.temps-ecoule{ color: var(--neon-orange); animation: none; }
+  @keyframes clignote-temps{ 50%{ opacity: 0.5; } }
+  .alerte-temps, .attente-fin{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+  }
+  .alerte-temps{ background: rgba(255,46,136,0.12); border: 1px solid var(--neon-pink); }
+  .attente-fin{ background: rgba(255,153,0,0.1); border: 1px solid var(--neon-orange); }
+  .alerte-titre{ font-weight: 700; }
+  .alerte-boutons{ display: flex; gap: 8px; }
+  .alerte-boutons button, .attente-fin button{ flex: 1; min-height: 44px; }
+
+  /* Mode automatique : panneau de choix, question des 30 min, cartes des PC */
+  .panneau-auto{
+    background: rgba(34,232,255,0.06);
+    border: 1px solid rgba(34,232,255,0.35);
+    border-radius: 14px;
+    padding: 12px 16px;
+    margin: 0 0 16px;
+  }
+  .panneau-auto > summary{ cursor: pointer; font-weight: 700; font-size: 1.05rem; }
+  .panneau-auto .petit-texte{ margin: 10px 0; }
+  .auto-pcs{ display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0 10px; }
+  .auto-pc{ display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .auto-ligne{ display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .auto-ligne select, .auto-ligne input{ flex: 1; min-width: 160px; }
+  .alerte-bloc{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+    margin: 0 0 16px;
+    border-radius: 14px;
+    background: rgba(255,153,0,0.1);
+    border: 1px solid var(--neon-orange);
+  }
+  .auto-info{ padding: 8px 2px; }
+  .auto-etiquette{ font-family: 'Orbitron', sans-serif; font-size: 0.75rem; letter-spacing: 2px; color: var(--neon-cyan); margin-bottom: 4px; }
+  .auto-fin{ padding: 8px 12px; border-radius: 10px; background: rgba(255,46,136,0.12); border: 1px solid var(--neon-pink); font-size: 0.9rem; }
+  .btn-refuser-nom{ flex-basis: 100%; }
+
+  /* --- Petits details de confort et d'accessibilite --- */
+  :focus-visible{ outline: 3px solid var(--neon-cyan); outline-offset: 2px; }
+  button:disabled{ opacity: 0.45; cursor: not-allowed; }
+  button:not(:disabled):active{ transform: scale(0.97); }
+  .poste .chrono, .alerte-titre, .compte{ font-variant-numeric: tabular-nums; }
+  .poste .infos strong, .poste-nom{ overflow: hidden; text-overflow: ellipsis; }
+  .poste .joueurs-txt{ display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+  .poste.minuteur-autofin{ border-color: var(--neon-pink); }
+  .alerte-bloc{ animation: pulse-bloc 2.4s ease-in-out infinite; }
+  @keyframes pulse-bloc{ 50%{ box-shadow: 0 0 0 4px rgba(255,153,0,0.25); } }
+  @media (prefers-reduced-motion: reduce){
+    .poste .chrono.temps-ecoule, .alerte-bloc{ animation: none !important; }
+    .toast{ transition: none !important; }
+  }
+  .resume-salle{ display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 14px; color: var(--text-dim); font-size: 0.9rem; }
+  .resume-salle b{ color: var(--text); }
+  .pastille-conn{ font-size: 0.8rem; margin-left: 6px; cursor: help; }
+  .jeu-absent{ font-size: 0.85rem; color: var(--neon-orange); }
+  .bloc-barre{ font-size: 0.78rem; color: var(--text-dim); }
+  .bloc-fond{ height: 4px; border-radius: 4px; background: rgba(255,255,255,0.1); margin-top: 3px; overflow: hidden; }
+  .bloc-rempli{ height: 100%; background: var(--neon-cyan); transition: width 1s linear; }
+  .bloc-rempli.bientot{ background: var(--neon-orange); }
+  .hist-outils{ display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 0 0 12px; }
+  .hist-outils input[type="search"]{ flex: 1; min-width: 220px; }
+  .hist-outils label{ display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  #toasts{ position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 9999; pointer-events: none; align-items: center; }
+  .toast{ background: #1c1c2e; color: var(--text); border: 1px solid var(--neon-cyan); border-radius: 12px; padding: 10px 18px; font-weight: 600; box-shadow: 0 6px 24px rgba(0,0,0,0.5); transition: opacity 0.4s, transform 0.4s; }
+  .toast-sortie{ opacity: 0; transform: translateY(10px); }
+  .banniere-hors-ligne{ position: sticky; top: 0; z-index: 50; background: #4a1020; color: #ffd0dc; text-align: center; padding: 8px 12px; font-weight: 700; }
+  .auto-msg{ color: var(--neon-pink); min-height: 1.2em; font-size: 0.9rem; margin: 0 0 6px; }
+  .auto-nombres{ display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 0 0 10px; }
+  .auto-nombres label{ display: flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+  .auto-nombres input{ width: 74px; min-width: 0; flex: none; }
+  .auto-outils{ display: flex; gap: 8px; margin: 0 0 6px; }
+  .auto-outils button{ padding: 4px 12px; min-width: 0; flex: none; }
+  .petit-btn{ padding: 4px 12px; min-width: 0; flex: none; }
+  @media print{
+    header, .aide, #panneau-auto, #alertes-bloc, .grille-postes, #section-tournois, .hist-outils, #toasts, footer{ display: none !important; }
+    body{ background: #fff; color: #000; }
+  }
+
+  .poste .infos{
+    font-size: 0.9rem;
+    color: var(--text-dim);
+  }
+  .poste .infos strong{ color: var(--text); }
+
+  .poste-form{ display: flex; flex-direction: column; gap: 8px; }
+  .poste-form label{ font-size: 0.78rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .avis-verrou-pc{
+    background: rgba(255,46,136,0.1);
+    border: 1px solid rgba(255,46,136,0.4);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+    color: var(--neon-pink);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .lien-debloquer-pc{
+    align-self: flex-start;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    text-decoration: underline;
+    padding: 0;
+    font-size: 0.75rem;
+  }
+  .lien-debloquer-pc:hover{ color: var(--neon-pink); }
+
+  .poste-actions{ display: flex; gap: 8px; flex-wrap: wrap; }
+  .poste-actions button{ flex: 1; min-width: 90px; }
+
+  .poste-pied{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .poste-ecran{
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 4px 10px;
+    font-size: 0.78rem;
+  }
+  .poste-ecran:hover{ color: var(--neon-orange); border-color: var(--neon-orange); }
+  .poste-suppr{
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    padding: 2px 6px;
+    font-size: 0.9rem;
+  }
+  .poste-suppr:hover{ color: var(--neon-pink); border: none; }
+
+  .carte-ajout{
+    background: transparent;
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    color: var(--text-dim);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .carte-ajout:hover{ border-color: var(--neon-cyan); color: var(--neon-cyan); }
+
+  .grille-tournois{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 18px;
+  }
+  .carte-tournoi{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .tournoi-entete{ display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .tournoi-entete strong{ font-family: 'Orbitron', sans-serif; font-size: 0.95rem; }
+  .tournoi-vainqueur{
+    color: var(--neon-orange);
+    font-weight: 700;
+    background: rgba(255,176,32,0.12);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+  }
+  .tournoi-brackets{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .bracket-colonne{ display: flex; flex-direction: column; gap: 6px; }
+  .bracket-colonne h4{ font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+  .bracket-colonne button{ font-size: 0.78rem; padding: 6px 10px; }
+  .equipe-tag{
+    display: inline-block;
+    background: rgba(148,148,176,0.12);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 0.78rem;
+    margin: 2px 4px 2px 0;
+  }
+  .tournoi-matchs h4{ font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .match-attente{
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .match-choix{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .match-choix button{ font-size: 0.78rem; padding: 6px 10px; }
+  .match-demarrer{ display: flex; align-items: center; gap: 8px; }
+  .match-demarrer select{ flex: 1; }
+  .match-demarrer button{ font-size: 0.78rem; padding: 6px 10px; white-space: nowrap; }
+  .match-demarrer-deux{ display: flex; flex-direction: column; gap: 6px; }
+  .match-demarrer-deux label{ display: flex; flex-direction: column; gap: 3px; }
+  .match-demarrer-deux button{ font-size: 0.78rem; padding: 6px 10px; align-self: flex-start; }
+  .btn-lancer-finale{ width: 100%; }
+  .tournoi-historique-detail{ font-size: 0.8rem; }
+  .tournoi-historique-detail summary{ cursor: pointer; }
+  .tournoi-historique-detail div{ padding: 2px 0; }
+
+  .historique-liste{ display: flex; flex-direction: column; gap: 10px; }
+  .historique-item{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .historique-item .detail{ display: flex; flex-direction: column; gap: 2px; }
+  .historique-item .detail .titre{ font-weight: 700; }
+  .historique-item .detail .sous{ font-size: 0.85rem; color: var(--text-dim); }
+  .historique-item .resultat{
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.85rem;
+    color: var(--neon-green);
+    text-align: right;
+  }
+  .historique-item .duree{ font-size: 0.8rem; color: var(--text-dim); }
+
+  .vide{ color: var(--text-dim); font-style: italic; padding: 20px 0; }
+
+  .overlay{
+    position: fixed;
+    inset: 0;
+    background: rgba(4,4,10,0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 20px;
+  }
+  .overlay.cache{ display: none; }
+  .modale{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 26px;
+    max-width: 400px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .modale h3{ font-size: 1.1rem; }
+  .modale-actions{ display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+  .modale-ecran{ max-width: 720px; }
+  .modale-ecran img{ width: 100%; border-radius: 10px; background: var(--bg-alt); }
+  .choix-jeu{ width: 100%; text-align: left; }
+  .modale-stats{ max-width: 460px; max-height: 80vh; overflow-y: auto; }
+  .stat-resume{ display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+  .stat-resume strong{ font-size: 1.4rem; color: var(--neon-cyan); }
+  .modale-stats h4{ font-size: 0.85rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 6px; }
+  .stat-ligne{ display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
+  .stat-ligne:last-child{ border-bottom: none; }
+
+  footer{
+    text-align: center;
+    padding: 24px 5% 40px;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+
+  #fichier-import{ display: none; }
+
+  @media (max-width: 560px){
+    .logo{ font-size: 1.15rem; }
+    header{ padding: 14px 4%; }
+    main{ padding: 28px 4% 80px; }
+  }
+
+  /* ---- Verrou d'accès (outil interne, pas pour le public) ---- */
+  #gate-acces{
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: var(--bg);
+    padding: 24px;
+    gap: 6px;
+  }
+  #gate-acces.cache{ display: none; }
+  #gate-acces .icone{ font-size: 2.4rem; margin-bottom: 8px; }
+  #gate-acces h1{ font-family: 'Orbitron', sans-serif; font-size: 1.6rem; color: var(--neon-cyan); }
+  #gate-acces p{ color: var(--text-dim); max-width: 40ch; font-size: 0.95rem; }
+  #gate-acces button{ margin-top: 18px; min-height: 48px; padding: 0 26px; font-size: 1rem; }
+  #gate-acces #gate-installer{ margin-top: 12px; border-color: rgba(34,232,255,0.5); }
+  #gate-acces .astuce-ios{ margin-top: 16px; font-size: 0.85rem; }
+
+  .overlay-mdp{
+    position: fixed;
+    inset: 0;
+    z-index: 600;
+    background: rgba(5,5,10,0.85);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .overlay-mdp.cache{ display: none; }
+  .modale-mdp{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 26px;
+    max-width: 320px;
+    width: 100%;
+    text-align: center;
+  }
+  .modale-mdp h3{ font-size: 1.1rem; margin-bottom: 14px; }
+  .modale-mdp input{
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.05rem;
+    padding: 10px 12px;
+    border-radius: 8px;
+    text-align: center;
+    letter-spacing: 2px;
+  }
+  .mdp-actions{ display: flex; gap: 10px; margin-top: 16px; }
+  .mdp-actions button{ flex: 1; }
+  .mdp-erreur{ color: var(--neon-pink); font-size: 0.85rem; margin-top: 10px; display: none; }
+  .mdp-erreur.actif{ display: block; }
+
+  /* ===== REFONTE 2026-10-09 : plus simple à comprendre, plus belle ===== */
+  button:hover{ transform: none; border-color: var(--neon-cyan); filter: brightness(1.12); }
+  button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{ outline: 3px solid var(--neon-cyan); outline-offset: 2px; }
+
+  header{ border-bottom: none; box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
+  header::after{ content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: linear-gradient(90deg, var(--neon-purple), var(--neon-cyan), var(--neon-pink)); opacity: 0.75; }
+  .logo{ display: flex; flex-direction: column; line-height: 1.1; }
+  .logo small{ font-family: 'Rajdhani', sans-serif; font-size: 0.8rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin-top: 3px; -webkit-text-fill-color: var(--text-dim); color: var(--text-dim); }
+  .badge-connexion{ font-size: 0.85rem; padding: 8px 14px; }
+  button.gros{ min-height: 48px; padding: 12px 20px; font-size: 1.05rem; border-radius: 12px; border-width: 2px; }
+  .menu-plus{ position: relative; }
+  .menu-plus > summary{ list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 48px; padding: 12px 18px; font-weight: 700; font-size: 1.05rem; background: var(--card); border: 1px solid var(--border); border-radius: 12px; user-select: none; }
+  .menu-plus > summary::-webkit-details-marker{ display: none; }
+  .menu-plus[open] > summary{ border-color: var(--neon-cyan); }
+  .menu-plus-liste{ position: absolute; right: 0; top: calc(100% + 8px); z-index: 150; display: flex; flex-direction: column; gap: 6px; min-width: 270px; padding: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 40px rgba(0,0,0,0.55); }
+  .menu-plus-liste button{ width: 100%; text-align: left; min-height: 44px; }
+
+  .aide{ margin-bottom: 38px; border: 1px solid rgba(34,232,255,0.35); border-radius: 18px; background: linear-gradient(160deg, rgba(34,232,255,0.08), rgba(176,38,255,0.06)); padding: 4px 24px; }
+  .aide > summary{ cursor: pointer; list-style: none; font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.05rem; padding: 14px 0; }
+  .aide > summary::-webkit-details-marker{ display: none; }
+  .aide > summary::after{ content: "Masquer"; float: right; font-family: 'Rajdhani', sans-serif; font-size: 0.9rem; font-weight: 600; color: var(--text-dim); }
+  .aide:not([open]) > summary::after{ content: "Afficher"; }
+  .aide-etapes{ list-style: none; counter-reset: etape; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; padding: 4px 0 20px; }
+  .aide-etapes li{ counter-increment: etape; position: relative; padding-left: 48px; font-size: 1rem; line-height: 1.45; }
+  .aide-etapes li::before{ content: counter(etape); position: absolute; left: 0; top: 0; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-family: 'Orbitron', sans-serif; font-weight: 700; background: linear-gradient(135deg, var(--neon-purple), var(--neon-cyan)); color: #04040a; }
+  .aide-etapes b{ display: block; color: var(--neon-cyan); font-size: 1.05rem; }
+
+  section > h2{ font-size: 1.5rem; margin-bottom: 8px; flex-wrap: wrap; }
+  .soustitre{ margin: 0 0 20px; color: var(--text-dim); font-size: 1.02rem; max-width: 72ch; }
+  .petit-texte{ font-size: 0.9rem; }
+
+  input[type="text"], input[type="number"], select, textarea{ font-size: 1rem; padding: 11px 12px; border-radius: 10px; }
+  .poste{ position: relative; overflow: hidden; border-radius: 18px; padding: 22px 20px 16px; gap: 14px; background: linear-gradient(170deg, rgba(255,255,255,0.04), transparent 55%), var(--card); }
+  .poste::before{ content: ""; position: absolute; left: 0; top: 0; right: 0; height: 4px; background: rgba(43,255,136,0.6); }
+  .poste.statut-libre{ border-color: rgba(43,255,136,0.22); }
+  .poste.statut-encours::before{ background: var(--neon-cyan); box-shadow: 0 0 14px var(--neon-cyan); }
+  .poste.statut-pause::before{ background: var(--neon-orange); box-shadow: 0 0 14px var(--neon-orange); }
+  .poste-nom{ padding: 4px 2px; border-radius: 6px; font-size: 1.1rem; }
+  .badge{ font-size: 0.8rem; padding: 5px 12px; }
+  .badge::before{ content: "●"; margin-right: 6px; }
+  .badge.libre{ background: rgba(43,255,136,0.14); color: var(--neon-green); }
+  .poste .chrono{ font-size: 2.5rem; text-shadow: 0 0 18px currentColor; }
+  .poste .infos{ font-size: 1.05rem; }
+  .poste .infos strong{ font-size: 1.25rem; }
+  .poste-form label{ font-size: 1rem; color: var(--text); text-transform: none; letter-spacing: 0; font-weight: 600; }
+  .poste-actions button{ min-height: 50px; font-size: 1.05rem; border-radius: 12px; }
+  .poste-ecran{ font-size: 0.85rem; padding: 6px 12px; border-radius: 10px; }
+  .carte-ajout{ min-height: 170px; border-radius: 18px; font-size: 1.1rem; font-weight: 600; }
+
+  .carte-tournoi{ border-radius: 18px; padding: 22px 20px; background: linear-gradient(170deg, rgba(255,255,255,0.04), transparent 55%), var(--card); }
+  .tournoi-entete strong{ font-size: 1.1rem; }
+  .etape-aide{ background: rgba(34,232,255,0.09); border-left: 4px solid var(--neon-cyan); border-radius: 0 12px 12px 0; padding: 10px 14px; font-size: 1.02rem; font-weight: 600; }
+  .bracket-colonne h4{ font-size: 0.85rem; }
+  .equipe-tag{ font-size: 0.9rem; padding: 4px 12px; }
+  .match-attente{ border-radius: 12px; padding: 12px; background: rgba(255,255,255,0.025); }
+  .match-choix button, .match-demarrer-deux button{ font-size: 0.98rem; padding: 10px 16px; min-height: 44px; }
+  .bracket-colonne button{ font-size: 0.92rem; padding: 9px 12px; min-height: 42px; }
+
+  .historique-item{ border-radius: 14px; }
+  .vide{ text-align: center; padding: 28px; border: 2px dashed var(--border); border-radius: 16px; font-style: normal; }
+
+  @media (max-width: 640px){
+    .header-actions{ width: 100%; }
+    .header-actions .gros{ flex: 1 1 150px; }
+    .menu-plus{ position: static; }
+    .menu-plus-liste{ left: 4%; right: 4%; top: 100%; min-width: 0; }
+    .aide{ padding: 4px 16px; }
+    section > h2{ font-size: 1.3rem; }
+  }
+  @media (prefers-reduced-motion: reduce){ *{ transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+
+<div id="gate-acces">
+  <div class="icone">🔒</div>
+  <h1>Accès réservé</h1>
+  <p>Cet outil sert à gérer le festival en direct — réservé à l'équipe technique.</p>
+  <button type="button" id="gate-acces-bouton" class="primary">🔑 Entrer le code</button>
+  <button type="button" id="gate-installer" hidden>📲 Installer l'application</button>
+  <p id="gate-ios" class="astuce-ios" hidden>Sur iPhone / iPad : touche « Partager » puis « Sur l'écran d'accueil » pour installer l'appli.</p>
+</div>
+<script>
+  try{
+    localStorage.removeItem('2k27_gestion_debloque'); // anciennes mémoires (codes changés le 14 oct. puis le 6 nov. 2026) : tous les appareils sont reverrouillés
+    localStorage.removeItem('2k27_gestion_debloque_v2');
+    if (localStorage.getItem('2k27_gestion_debloque_v3') === 'oui'){
+      document.getElementById('gate-acces').classList.add('cache');
+    }
+  }catch(e){}
+</script>
+
+<div class="overlay-mdp cache" id="overlay-mdp-acces">
+  <div class="modale-mdp">
+    <h3>Déverrouillage</h3>
+    <input type="password" id="champ-mdp-acces" placeholder="Code" autocomplete="off">
+    <div class="mdp-actions">
+      <button type="button" id="mdp-acces-annuler">Annuler</button>
+      <button type="button" id="mdp-acces-valider" class="primary">Valider</button>
+    </div>
+    <div class="mdp-erreur" id="mdp-acces-erreur">Code incorrect.</div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">🕹️ FESTIVAL 2K27<small>Gestion des parties</small></div>
+  <div class="header-actions">
+    <span id="badge-connexion" class="badge-connexion">● Chargement…</span>
+    <button id="btn-pause-annonce" class="pause-globale gros" title="Met en pause tous les PC en cours pour faire une annonce. Reclique pour reprendre.">⏸ Pause annonce</button>
+    <button id="btn-terminer-jeu" class="pause-globale changement gros" title="Choisis un jeu : toutes ses parties en cours sont terminées et les PC se verrouillent le temps de changer de jeu.">🔄 Changer de jeu</button>
+    <details class="menu-plus">
+      <summary>⋯ Plus</summary>
+      <div class="menu-plus-liste">
+        <button id="btn-stats" title="Voir un résumé des parties jouées">📊 Statistiques</button>
+        <button id="btn-export" title="Sauvegarder toutes les données dans un fichier">⬇ Sauvegarder dans un fichier</button>
+        <button id="btn-import" title="Recharger des données depuis un fichier sauvegardé">⬆ Recharger un fichier</button>
+        <button id="btn-export-csv" title="Exporter l'historique en tableur (Excel, LibreOffice...)">📄 Historique pour Excel (CSV)</button>
+        <button id="btn-muet" title="Couper ou remettre les bips de l'outil">🔔 Sons : activés</button>
+        <button id="btn-restaurer-auto" title="Recharger la dernière copie que l'outil a faite tout seul sur cet appareil">↩ Restaurer la sauvegarde automatique</button>
+        <button id="btn-installer" hidden title="Installer l'application sur cet appareil">📲 Installer l'appli</button>
+      </div>
+    </details>
+    <input type="file" id="fichier-import" accept="application/json">
+  </div>
+</header>
+
+<main>
+  <details class="aide" id="aide-gestion" open>
+    <summary>👋 Comment ça marche ?</summary>
+    <ol class="aide-etapes">
+      <li><b>Tout automatique 🤖</b>Dans « Mode automatique », coche les PC, choisis le jeu (et le mode) puis clique ▶ Lancer en automatique : les joueurs tapent leur nom sur le PC, jouent 10 min, et le PC se remet tout seul en attente. Au bout de 30 min je te demande si on change de jeu ou de mode.</li>
+      <li><b>Lancer une partie à la main</b>Sur un PC « Libre » (non automatique), choisis le jeu et qui joue, puis clique ▶ Démarrer. Un minuteur de 10 min part : à zéro, l'outil demande si la partie est terminée (Oui = on coupe, Non = on attend la fin et on redemande 2 min plus tard).</li>
+      <li><b>Faire une annonce</b>Clique ⏸ Pause annonce en haut : tous les PC se mettent en pause. Reclique pour reprendre.</li>
+      <li><b>Finir ou changer de jeu</b>Clique 🏁 Terminer sur un PC. Pour tout changer d'un coup, utilise 🔄 Changer de jeu.</li>
+      <li><b>Faire un tournoi</b>Crée-le plus bas, clique « Créer les matchs », démarre chaque match, puis clique l'équipe gagnante.</li>
+    </ol>
+  </details>
+
+  <section>
+    <h2>🖥️ Les PC de jeu <span class="compte" id="compte-postes"></span></h2>
+    <p class="soustitre">Un PC = une carte. Vert : libre. Bleu : une partie est en cours. Orange : en pause.</p>
+    <div class="resume-salle" id="resume-salle" aria-live="polite"></div>
+    <div id="alertes-bloc" aria-live="assertive"></div>
+    <div id="panneau-auto"></div>
+    <div class="grille-postes" id="grille-postes"></div>
+  </section>
+
+  <section id="section-tournois">
+    <h2>🏆 Tournois <span class="compte" id="compte-tournois"></span></h2>
+    <p class="soustitre">Chaque équipe joue sur son propre PC. Une équipe est éliminée à sa 2e défaite : la 1re défaite lui donne une seconde chance.</p>
+    <div class="grille-tournois" id="grille-tournois"></div>
+  </section>
+
+  <section id="section-ecrans">
+    <h2>📺 Écrans en direct</h2>
+    <p class="soustitre">Un aperçu de l'écran de chaque PC, mis à jour toutes les 10 secondes pendant une partie. L'étiquette indique si le PC est connecté.</p>
+    <div class="grille-ecrans" id="grille-ecrans"></div>
+  </section>
+
+  <section>
+    <h2>📜 Historique des parties <span class="compte" id="compte-historique"></span></h2>
+    <p class="soustitre">Les parties terminées, de la plus récente à la plus ancienne.</p>
+    <div class="hist-outils">
+      <input type="search" id="filtre-historique" placeholder="Chercher un joueur, un jeu, un PC…" aria-label="Chercher dans l'historique" autocomplete="off">
+      <label><input type="checkbox" id="hist-aujourdhui"> Aujourd'hui seulement</label>
+    </div>
+    <div class="historique-liste" id="historique-liste"></div>
+  </section>
+</main>
+
+<div id="toasts" role="status" aria-live="polite"></div>
+<footer>Festival 2K27 — gestion des parties. Quand l'étiquette en haut est verte, les données sont partagées entre tous les appareils connectés. Sinon, elles restent sur cet appareil.
+  <div class="petit-texte" id="pied-infos"></div></footer>
+
+<div class="overlay cache" id="overlay-terminer">
+  <div class="modale">
+    <h3 id="modale-titre">Terminer la partie</h3>
+    <div class="poste-form" id="modale-champs"></div>
+    <div class="modale-actions">
+      <button id="modale-annuler">Annuler</button>
+      <button id="modale-valider" class="primary">Valider</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay cache" id="overlay-choisir-jeu">
+  <div class="modale">
+    <h3>Terminer quel jeu ?</h3>
+    <div class="poste-form" id="liste-jeux-actifs"></div>
+    <div class="modale-actions">
+      <button id="jeu-annuler">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay cache" id="overlay-ecran-agrandi">
+  <div class="modale modale-ecran">
+    <h3 id="titre-ecran-agrandi">Écran</h3>
+    <img id="img-ecran-agrandi" src="" alt="Aperçu écran agrandi">
+    <div class="etat-ecran" id="etat-ecran-agrandi"></div>
+    <div class="modale-actions">
+      <button id="fermer-ecran-agrandi" class="primary">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay cache" id="overlay-stats">
+  <div class="modale modale-stats">
+    <h3>📊 Statistiques</h3>
+    <div id="stats-contenu"></div>
+    <div class="modale-actions">
+      <button id="fermer-stats" class="primary">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay cache" id="overlay-nouveau-tournoi">
+  <div class="modale">
+    <h3>🏆 Nouveau tournoi</h3>
+    <div class="poste-form">
+      <label>Nom du tournoi</label>
+      <input type="text" id="champ-nom-tournoi" placeholder="Ex : Tournoi Trackmania">
+      <label>Jeu</label>
+      <select id="champ-jeu-tournoi"></select>
+      <input type="text" id="champ-jeu-autre-tournoi" placeholder="Précise le jeu" style="display:none;">
+      <label>Équipes (une par ligne, au moins 2)</label>
+      <textarea id="champ-equipes-tournoi" rows="6" placeholder="Équipe 1&#10;Équipe 2&#10;Équipe 3..."></textarea>
+      <p class="petit-texte">Chaque équipe joue sur son propre PC : un match demande 2 postes libres.</p>
+    </div>
+    <div class="modale-actions">
+      <button id="nouveau-tournoi-annuler">Annuler</button>
+      <button id="nouveau-tournoi-valider" class="primary">Créer</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script>
+(function(){
+  const CLE_STOCKAGE = 'festival2k27_parties';
+  // Liste mise a jour le 2026-09-25 pour l'edition de fevrier 2027 :
+  // uniquement les jeux PC, car cet outil ne gere/verrouille que les postes PC
+  // (verrou_poste.py). Les autres jeux (Switch, PS4, scene, smartphone) se saisissent
+  // via "Autre" en texte libre sur leur poste respectif.
+  const JEUX_DISPONIBLES = ['World of Padman', 'Trackmania'];
+  // PEGI confirmes dans le plan (les autres jeux sont encore en cours d'evaluation par
+  // l'equipe + le SAJ, voir memoire du projet) : affiche juste un rappel visuel, ne
+  // remplace pas la verification du badge par l'animateur de chaque espace.
+  const PEGI_PAR_JEU = { 'Fortnite': 12, 'Valorant': 16 };
+  // Champs de fin de partie adaptes au type de chaque jeu PC (2026-09-25, demande
+  // explicite "modifie le systeme de qui gagne en fonction du jeu"). Les jeux hors
+  // de cette liste (Switch/PS4/scene/smartphone saisis en "Autre") gardent le champ
+  // libre d'origine, inchange.
+  const CHAMPS_RESULTAT_PAR_JEU = {
+    'World of Padman': [
+      { id: 'gagnant', label: 'Gagnant', type: 'text', placeholder: 'Ex : Alice' },
+      { id: 'frags', label: 'Frags', type: 'number', placeholder: 'Ex : 12' }
+    ],
+    'Trackmania': [
+      { id: 'gagnant', label: 'Gagnant', type: 'text', placeholder: 'Ex : Bob' },
+      { id: 'temps', label: 'Temps', type: 'text', placeholder: 'Ex : 1:32.450' }
+    ],
+    'Fortnite': [
+      { id: 'gagnant', label: 'Gagnant', type: 'text', placeholder: 'Ex : Chloé' },
+      { id: 'classement', label: 'Classement (1 = Victoire Royale)', type: 'number', placeholder: 'Ex : 1' }
+    ],
+    'Valorant': [
+      { id: 'gagnant', label: 'Équipe gagnante', type: 'text', placeholder: 'Ex : Team Alice' },
+      { id: 'score', label: 'Score de manches', type: 'text', placeholder: 'Ex : 13-7' }
+    ]
+  };
+  function construireResultat(jeu, valeurs){
+    const gagnant = (valeurs.gagnant || '').trim();
+    if (!gagnant) return '—';
+    if (jeu === 'World of Padman'){
+      const frags = (valeurs.frags || '').trim();
+      return `${gagnant} gagne${frags ? ` (${frags} frags)` : ''}`;
+    }
+    if (jeu === 'Trackmania'){
+      const temps = (valeurs.temps || '').trim();
+      return `${gagnant} gagne${temps ? ` (${temps})` : ''}`;
+    }
+    if (jeu === 'Fortnite'){
+      const place = (valeurs.classement || '').trim();
+      return (!place || place === '1') ? `${gagnant} — Victoire Royale` : `${gagnant} — ${place}e place`;
+    }
+    if (jeu === 'Valorant'){
+      const score = (valeurs.score || '').trim();
+      return `${gagnant} gagne${score ? ` ${score}` : ''}`;
+    }
+    return gagnant;
+  }
+
+  // ↓↓↓ Pour connecter plusieurs appareils entre eux : crée un projet Firebase gratuit
+  // (console.firebase.google.com), active "Realtime Database", et colle ici la config
+  // "firebaseConfig" fournie par Firebase (Paramètres du projet > Vos applications > Web).
+  // Tant que apiKey vaut "COLLE_TA_CLE_ICI", l'outil reste en mode solo (un seul appareil).
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCFd2YAtKt8efLtsQIeyvCr0B8rVBs7VZ0",
+    authDomain: "festival2k27.firebaseapp.com",
+    databaseURL: "https://festival2k27-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "festival2k27"
+  };
+  const FIREBASE_ACTIF = FIREBASE_CONFIG.apiKey !== "COLLE_TA_CLE_ICI";
+  let firebaseRef = null;
+
+  function idUnique(prefixe){
+    return prefixe + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7);
+  }
+
+  // Firebase supprime les tableaux/valeurs vides d'un objet (ex: un tournoi tout
+  // juste cree avec "matchs: []") : sans cette normalisation, un tournoi renvoye
+  // par Firebase avec "matchs" ou "equipes" absent fait planter tout le rendu
+  // (.filter()/.some() sur undefined), et bloque le reste de la page avec lui.
+  function normaliserTournois(tournois){
+    return (tournois || []).map(t => ({
+      ...t,
+      equipes: t.equipes || [],
+      matchs: t.matchs || []
+    }));
+  }
+
+  // Securite : la base est lisible ET modifiable par n'importe quel appareil connecte (connexion
+  // anonyme avec la cle publique du site). Tout ce qui revient de la base ou d'un fichier importe
+  // est donc considere comme non fiable : identifiants reduits a [A-Za-z0-9_-], valeurs a choix
+  // limites (statut, raison de pause...) ramenees a une valeur connue, nombres verifies. Sans ca,
+  // un faux "statut" ou un faux identifiant glisse dans la base finirait tel quel dans le HTML de
+  // cette page (attributs class, data-...) et pourrait y executer du code.
+  const STATUTS_POSTE = ['libre', 'encours', 'pause'];
+  const RAISONS_PAUSE = ['annonce', 'changement'];
+
+  function idSur(v){
+    return String(v).replace(/[^A-Za-z0-9_\-]/g, '_').slice(0, 80);
+  }
+  function texteSur(v, max){
+    return v == null ? '' : String(v).slice(0, max);
+  }
+  function nombreSur(v){
+    return (typeof v === 'number' && isFinite(v)) ? v : null;
+  }
+  function listeSure(v){
+    if (Array.isArray(v)) return v.filter(x => x && typeof x === 'object');
+    if (v && typeof v === 'object') return Object.values(v).filter(x => x && typeof x === 'object');
+    return [];
+  }
+  function ids(o, cles){
+    cles.forEach(k => { if (o[k] != null) o[k] = idSur(o[k]); });
+  }
+  function textes(o, cles, max){
+    cles.forEach(k => { if (o[k] != null) o[k] = texteSur(o[k], max); });
+  }
+  function nombres(o, cles){
+    cles.forEach(k => { if (o[k] != null) o[k] = nombreSur(o[k]); });
+  }
+
+  function assainirEtat(e){
+    e.postes = listeSure(e.postes);
+    e.postes.forEach(p => {
+      ids(p, ['id']);
+      if (p.id == null) p.id = idUnique('poste');
+      textes(p, ['nom'], 60);
+      textes(p, ['jeu', 'joueurs'], 160);
+      if (!STATUTS_POSTE.includes(p.statut)) p.statut = 'libre';
+      if (!RAISONS_PAUSE.includes(p.pauseRaison)) p.pauseRaison = null;
+      nombres(p, ['debut', 'pauseDepuis', 'attenteDebut', 'attenteJusqua', 'blocDebut', 'dureePartieMin', 'blocMin']);
+      if (p.dureePartieMin != null) p.dureePartieMin = Math.min(60, Math.max(1, Math.round(p.dureePartieMin)));
+      if (p.blocMin != null) p.blocMin = Math.min(180, Math.max(5, Math.round(p.blocMin)));
+      p.pausedMs = nombreSur(p.pausedMs) || 0;
+      // mode automatique (ecrit par ce site pour auto/jeuAuto/modeAuto/blocDebut, par le PC pour le reste)
+      p.auto = p.auto === true;
+      textes(p, ['jeuAuto', 'modeAuto', 'mode'], 80);
+      if (p.depart !== 'auto' && p.depart !== 'staff') p.depart = null;
+    });
+    e.historique = listeSure(e.historique);
+    e.historique.forEach(h => {
+      ids(h, ['id']);
+      textes(h, ['poste'], 60);
+      textes(h, ['jeu', 'mode', 'joueurs', 'resultat'], 160);
+      nombres(h, ['fin', 'dureeMs']);
+    });
+    // parties terminees automatiquement : chaque PC ajoute une entree (cle unique de la base) dans historiqueAuto
+    const histAuto = {};
+    if (e.historiqueAuto && typeof e.historiqueAuto === 'object'){
+      Object.keys(e.historiqueAuto).forEach(k => {
+        const h = e.historiqueAuto[k];
+        if (!/^[A-Za-z0-9_\-]{1,40}$/.test(k) || !h || typeof h !== 'object') return;
+        textes(h, ['poste'], 60);
+        textes(h, ['jeu', 'mode', 'joueurs', 'resultat'], 160);
+        nombres(h, ['fin', 'dureeMs']);
+        histAuto[k] = h;
+      });
+    }
+    e.historiqueAuto = histAuto;
+    e.globalPausedIds = (Array.isArray(e.globalPausedIds) ? e.globalPausedIds : Object.values(e.globalPausedIds || {})).map(idSur);
+    e.tournois = listeSure(e.tournois);
+    e.tournois.forEach(t => {
+      ids(t, ['id', 'vainqueurFinal']);
+      textes(t, ['nom', 'jeu', 'jeuAutre'], 160);
+      t.equipes = listeSure(t.equipes);
+      t.equipes.forEach(q => {
+        ids(q, ['id']);
+        textes(q, ['nom'], 60);
+        textes(q, ['statut'], 20);
+      });
+      t.matchs = listeSure(t.matchs);
+      t.matchs.forEach(m => {
+        ids(m, ['id', 'equipeA', 'equipeB', 'vainqueur', 'posteId', 'posteIdA', 'posteIdB']);
+        textes(m, ['bracket', 'statut'], 20);
+        if (m.tour != null && nombreSur(m.tour) === null) m.tour = 0;
+      });
+    });
+    return e;
+  }
+
+  function etatParDefaut(){
+    return {
+      postes: [1,2,3,4].map(n => ({
+        id: idUnique('poste'),
+        nom: 'Poste ' + n,
+        jeu: '',
+        joueurs: '',
+        statut: 'libre',
+        debut: null,
+        pausedMs: 0,
+        pauseDepuis: null,
+        pauseRaison: null
+      })),
+      historique: [],
+      globalPauseActive: false,
+      globalPausedIds: [],
+      tournois: []
+    };
+  }
+
+  function chargerEtatLocal(){
+    try{
+      const brut = localStorage.getItem(CLE_STOCKAGE);
+      if (!brut) return etatParDefaut();
+      const donnees = JSON.parse(brut);
+      if (!donnees.postes || !donnees.historique) return etatParDefaut();
+      donnees.tournois = normaliserTournois(donnees.tournois);
+      return assainirEtat(donnees);
+    }catch(e){
+      return etatParDefaut();
+    }
+  }
+
+  let etat = null;
+  let posteEnAttenteFin = null;
+
+  function majBadgeConnexion(statut){
+    const badge = document.getElementById('badge-connexion');
+    if (statut === 'connecte'){
+      badge.textContent = '● Connecté (partagé)';
+      badge.className = 'badge-connexion connecte';
+    } else if (statut === 'erreur'){
+      badge.textContent = '● Connexion impossible';
+      badge.className = 'badge-connexion erreur';
+    } else {
+      badge.textContent = '● Solo (cet appareil)';
+      badge.className = 'badge-connexion solo';
+    }
+  }
+
+  function initEtat(){
+    if (FIREBASE_ACTIF){
+      firebase.initializeApp(FIREBASE_CONFIG);
+      // Connexion anonyme : sans ecran de connexion visible pour l'utilisatrice, mais
+      // empeche les lectures/ecritures "brutes" (ex: un simple appel curl) une fois que
+      // les regles Firebase exigent un compte authentifie (voir memoire du projet).
+      firebase.auth().signInAnonymously().then(() => {
+        demarrerEcouteFirebase();
+      }).catch(erreur => {
+        console.error('Echec connexion anonyme :', erreur);
+        if (!etat) etat = chargerEtatLocal();
+        majBadgeConnexion('erreur');
+        render();
+      });
+    } else {
+      etat = chargerEtatLocal();
+      majBadgeConnexion('solo');
+      render();
+    }
+  }
+
+  function demarrerEcouteFirebase(){
+    firebaseRef = firebase.database().ref('festival2k27_etat');
+    firebaseRef.on('value', snapshot => {
+      const donnees = snapshot.val();
+      if (!donnees || !donnees.postes){
+        etat = etatParDefaut();
+        firebaseRef.set(etat);
+      } else {
+        etat = donnees;
+        // Firebase supprime les tableaux/valeurs vides (ex: historique: []) : on
+        // remet des valeurs par defaut pour ces champs s'ils sont absents du snapshot.
+        etat.historique = etat.historique || [];
+        etat.globalPauseActive = etat.globalPauseActive || false;
+        etat.globalPauseRaison = etat.globalPauseRaison || null;
+        etat.globalPausedIds = etat.globalPausedIds || [];
+        etat.tournois = normaliserTournois(etat.tournois);
+        assainirEtat(etat);
+      }
+      majBadgeConnexion('connecte');
+      render();
+    }, erreur => {
+      console.error(erreur);
+      if (!etat) etat = chargerEtatLocal();
+      majBadgeConnexion('erreur');
+      render();
+    });
+  }
+
+  function sauvegarder(){
+    if (FIREBASE_ACTIF && firebaseRef){
+      firebaseRef.set(etat);
+    } else {
+      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(etat));
+    }
+  }
+
+  function formatDuree(ms){
+    const secondesTotales = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(secondesTotales / 3600);
+    const m = Math.floor((secondesTotales % 3600) / 60);
+    const s = secondesTotales % 60;
+    const deux = n => String(n).padStart(2, '0');
+    return h > 0 ? `${deux(h)}:${deux(m)}:${deux(s)}` : `${deux(m)}:${deux(s)}`;
+  }
+
+  function elapsedPoste(poste){
+    if (poste.statut === 'libre' || !poste.debut) return 0;
+    const reference = poste.statut === 'pause' ? poste.pauseDepuis : Date.now();
+    return reference - poste.debut - poste.pausedMs;
+  }
+
+  // Minuteur de 10 min par partie. A zero, la carte demande a l'animateur si la partie
+  // est terminee : "oui" = on coupe (meme chemin que le bouton Terminer), "non" = on
+  // attend la fin et on redemande apres RAPPEL_ATTENTE_MS. L'attente n'est valable que
+  // pour la partie en cours (attenteDebut === debut), donc une nouvelle partie repart a zero.
+  const DUREE_MINUTEUR_MS = 10 * 60 * 1000;
+  const RAPPEL_ATTENTE_MS = 2 * 60 * 1000;
+
+  // Duree d'une partie : celle choisie dans le panneau « Mode automatique » (dureePartieMin), sinon 10 min
+  function dureePartieMs(poste){
+    return (nombreSur(poste.dureePartieMin) || DUREE_MINUTEUR_MS / 60000) * 60000;
+  }
+
+  function minuteurRestantMs(poste){
+    return dureePartieMs(poste) - elapsedPoste(poste);
+  }
+
+  // ----- petits outils de confort : message qui s'efface, sons coupables, copie de secours -----
+  function toast(texte){
+    const zone = document.getElementById('toasts');
+    if (!zone) return;
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = texte;
+    zone.appendChild(t);
+    setTimeout(() => { t.classList.add('toast-sortie'); setTimeout(() => t.remove(), 450); }, 3500);
+  }
+
+  function sonsCoupes(){
+    try{ return localStorage.getItem('2k27_muet') === 'oui'; }catch(e){ return false; }
+  }
+
+  // Partie lancee par le PC lui-meme (mode automatique) : c'est le PC qui la termine, l'outil n'a rien a demander
+  function partieAutoEnCours(poste){
+    return poste.auto === true && poste.depart === 'auto';
+  }
+
+  function etatMinuteur(poste){
+    if (poste.statut === 'libre' || !poste.debut) return 'aucun';
+    if (minuteurRestantMs(poste) > 0) return 'courant';
+    if (partieAutoEnCours(poste)) return 'autofin';
+    if (poste.attenteDebut === poste.debut && Date.now() < (poste.attenteJusqua || 0)) return 'attente';
+    return 'demande';
+  }
+
+  function affichageMinuteur(poste){
+    const restant = minuteurRestantMs(poste);
+    if (restant > 0){
+      return { texte: formatDuree(Math.ceil(restant / 1000) * 1000), legende: 'temps restant', depasse: false };
+    }
+    return { texte: '+' + formatDuree(-restant), legende: 'temps dépassé · partie : ' + formatDuree(elapsedPoste(poste)), depasse: true };
+  }
+
+  // ===== Mode automatique =====
+  // Le joueur tape son nom sur le PC, la partie dure 10 min, puis le PC regarde si la manche est finie
+  // (sauf Trackmania : coupe a 10 min) et se remet en attente. L'animateur ne choisit que le jeu / le mode.
+  // Au bout de BLOC_AUTO_MS sur le meme jeu et mode, on lui demande s'il faut changer.
+  // (La duree de partie et la fin automatique sont reglees dans verrou_poste.py : DUREE_MINUTEUR_MS...)
+  const BLOC_AUTO_MS = 30 * 60 * 1000;  // valeur par defaut ; reglable dans le panneau (champ « Question au bout de »)
+  const MODES_SUGGERES = {
+    'Trackmania': ['Course', 'Contre-la-montre', 'Course à 2'],
+    'World of Padman': ['Match à mort', 'Capture du drapeau', 'Match par équipes']
+  };
+  const formAuto = { pcs: null, jeu: '', mode: '', duree: 10, bloc: 30, ouvert: null, msg: '' };  // ce que l'animateur est en train de choisir (render() refait le panneau)
+  const formBloc = {};                                               // idem pour chaque question des 30 min
+  let blocsVus = new Set();
+  let signatureAlertes = null;
+
+  // le dernier choix (jeu, mode, durees) est retenu sur cet appareil : on ne le retape pas a chaque festival
+  try{
+    const memo = JSON.parse(localStorage.getItem('2k27_form_auto') || '{}');
+    if (typeof memo.jeu === 'string' && JEUX_DISPONIBLES.includes(memo.jeu)) formAuto.jeu = memo.jeu;
+    if (typeof memo.mode === 'string') formAuto.mode = memo.mode.slice(0, 40);
+    if (nombreSur(memo.duree)) formAuto.duree = Math.min(60, Math.max(1, Math.round(memo.duree)));
+    if (nombreSur(memo.bloc)) formAuto.bloc = Math.min(180, Math.max(5, Math.round(memo.bloc)));
+  }catch(e){}
+
+  function memoriserFormAuto(){
+    try{ localStorage.setItem('2k27_form_auto', JSON.stringify({ jeu: formAuto.jeu, mode: formAuto.mode, duree: formAuto.duree, bloc: formAuto.bloc })); }catch(e){}
+  }
+
+  function posteAuto(p){
+    return p.auto === true;
+  }
+
+  // duree d'un bloc (avant la question « on change de jeu ou de mode ? ») d'un groupe de PC
+  function blocMs(g){
+    return (nombreSur(g.postes[0].blocMin) || BLOC_AUTO_MS / 60000) * 60000;
+  }
+
+  // Ecrit seulement les champs donnes sur les PC donnes (et non tout l'etat) : les PC ecrivent eux aussi
+  // dans la base, un "tout reecrire" depuis un ecran en retard effacerait leur travail.
+  function majPostes(idsPostes, champs){
+    etat.postes.forEach(p => { if (idsPostes.includes(p.id)) Object.assign(p, champs); });
+    if (FIREBASE_ACTIF && firebaseRef){
+      const maj = {};
+      etat.postes.forEach((p, i) => {
+        if (idsPostes.includes(p.id)) Object.keys(champs).forEach(k => { maj['postes/' + i + '/' + k] = champs[k]; });
+      });
+      firebaseRef.update(maj);
+    } else {
+      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(etat));
+    }
+    render();
+  }
+
+  function appliquerAuto(){
+    const ids = (formAuto.pcs || []).filter(id => trouverPoste(id));
+    if (!ids.length){ formAuto.msg = 'Coche au moins un PC.'; renderAuto(); return; }
+    formAuto.duree = Math.min(60, Math.max(1, Math.round(Number(formAuto.duree)) || 10));
+    formAuto.bloc = Math.min(180, Math.max(5, Math.round(Number(formAuto.bloc)) || 30));
+    formAuto.msg = '';
+    memoriserFormAuto();
+    majPostes(ids, { auto: true, jeuAuto: formAuto.jeu, modeAuto: formAuto.mode.trim().slice(0, 40), blocDebut: Date.now(),
+                     dureePartieMin: formAuto.duree, blocMin: formAuto.bloc });
+    toast(`🤖 ${ids.length} PC en automatique : ${formAuto.jeu}${formAuto.mode.trim() ? ' · ' + formAuto.mode.trim() : ''} (${formAuto.duree} min par partie)`);
+  }
+
+  function arreterAuto(){
+    const ids = (formAuto.pcs || []).filter(id => trouverPoste(id));
+    if (!ids.length){ formAuto.msg = 'Coche au moins un PC.'; renderAuto(); return; }
+    formAuto.msg = '';
+    majPostes(ids, { auto: false });
+    toast(`✋ ${ids.length} PC repassé(s) en manuel`);
+  }
+
+  function renderAuto(){
+    const zone = document.getElementById('panneau-auto');
+    if (!zone || !etat) return;
+    const nbAuto = etat.postes.filter(posteAuto).length;
+    if (!formAuto.pcs) formAuto.pcs = etat.postes.map(p => p.id);
+    if (!formAuto.jeu) formAuto.jeu = JEUX_DISPONIBLES[0];
+    if (formAuto.ouvert === null) formAuto.ouvert = nbAuto === 0;
+    const sugg = MODES_SUGGERES[formAuto.jeu] || [];
+    zone.innerHTML = `
+      <details class="panneau-auto"${formAuto.ouvert ? ' open' : ''}>
+        <summary>🤖 Mode automatique <span class="compte">· ${nbAuto} PC sur ${etat.postes.length} en automatique</span></summary>
+        <p class="petit-texte">Les joueurs tapent leur nom sur le PC (les noms vulgaires sont refusés) et jouent la durée choisie ci-dessous. Ensuite le PC regarde si la manche est finie (Trackmania : coupé net), puis attend les joueurs suivants. Au bout du temps choisi sur le même jeu, je te demande si on change de jeu ou de mode. Toi, tu ne choisis que le jeu.</p>
+        <div class="auto-outils">
+          <button type="button" class="petit-btn" id="auto-tous" title="Cocher tous les PC">Tous les PC</button>
+          <button type="button" class="petit-btn" id="auto-aucun" title="Décocher tous les PC">Aucun</button>
+          <button type="button" class="petit-btn" id="auto-libres" title="Cocher seulement les PC libres">Les PC libres</button>
+        </div>
+        <div class="auto-pcs">${etat.postes.map(p => `<label class="auto-pc"><input type="checkbox" class="auto-pc-case" value="${escapeHtml(p.id)}"${formAuto.pcs.includes(p.id) ? ' checked' : ''}> ${escapeHtml(p.nom)}${posteAuto(p) ? ' 🤖' : ''}</label>`).join('')}</div>
+        <div class="auto-ligne">
+          <select id="auto-jeu" aria-label="Jeu à lancer">${JEUX_DISPONIBLES.map(j => `<option value="${escapeHtml(j)}"${j === formAuto.jeu ? ' selected' : ''}>${escapeHtml(j)}</option>`).join('')}</select>
+          <input type="text" id="auto-mode" list="auto-modes" maxlength="40" placeholder="Mode de jeu (facultatif)" autocomplete="off" enterkeyhint="go" aria-label="Mode de jeu" value="${escapeHtml(formAuto.mode)}">
+          <datalist id="auto-modes">${sugg.map(m => `<option value="${escapeHtml(m)}"></option>`).join('')}</datalist>
+        </div>
+        <div class="auto-nombres">
+          <label>Durée d'une partie <input type="number" id="auto-duree" min="1" max="60" step="1" inputmode="numeric" value="${Number(formAuto.duree) || 10}"> min</label>
+          <label>Question « on change ? » au bout de <input type="number" id="auto-bloc" min="5" max="180" step="5" inputmode="numeric" value="${Number(formAuto.bloc) || 30}"> min</label>
+        </div>
+        <div class="auto-msg" role="alert">${escapeHtml(formAuto.msg)}</div>
+        <div class="poste-actions">
+          <button class="primary" id="auto-appliquer">▶ Lancer en automatique</button>
+          <button id="auto-arreter"${nbAuto ? '' : ' disabled'}>✋ Repasser en manuel</button>
+        </div>
+      </details>`;
+    const cocher = ids => { formAuto.pcs = ids; formAuto.msg = ''; renderAuto(); };
+    zone.querySelector('#auto-tous').addEventListener('click', () => cocher(etat.postes.map(p => p.id)));
+    zone.querySelector('#auto-aucun').addEventListener('click', () => cocher([]));
+    zone.querySelector('#auto-libres').addEventListener('click', () => cocher(etat.postes.filter(p => p.statut === 'libre').map(p => p.id)));
+    zone.querySelectorAll('.auto-pc-case').forEach(c => c.addEventListener('change', () => {
+      formAuto.pcs = [...zone.querySelectorAll('.auto-pc-case:checked')].map(x => x.value);
+    }));
+    zone.querySelector('#auto-jeu').addEventListener('change', e => { formAuto.jeu = e.target.value; memoriserFormAuto(); renderAuto(); });
+    zone.querySelector('#auto-mode').addEventListener('input', e => { formAuto.mode = e.target.value; });
+    zone.querySelector('#auto-mode').addEventListener('keydown', e => { if (e.key === 'Enter') appliquerAuto(); });
+    zone.querySelector('#auto-duree').addEventListener('input', e => { formAuto.duree = e.target.value; });
+    zone.querySelector('#auto-bloc').addEventListener('input', e => { formAuto.bloc = e.target.value; });
+    zone.querySelector('#auto-appliquer').addEventListener('click', appliquerAuto);
+    zone.querySelector('#auto-arreter').addEventListener('click', arreterAuto);
+    zone.querySelector('details').addEventListener('toggle', e => { formAuto.ouvert = e.target.open; });
+  }
+
+  // Les PC en automatique qui ont le meme jeu, le meme mode et le meme debut de bloc forment un groupe
+  function groupesBloc(){
+    const groupes = {};
+    etat.postes.filter(p => posteAuto(p) && p.jeuAuto && p.blocDebut).forEach(p => {
+      const cle = [p.jeuAuto, p.modeAuto || '', p.blocDebut].join('|');
+      const g = groupes[cle] = groupes[cle] || { cle, jeu: p.jeuAuto, mode: p.modeAuto || '', debut: p.blocDebut, postes: [] };
+      g.postes.push(p);
+    });
+    return Object.values(groupes);
+  }
+
+  function renderAlertesBloc(forcer){
+    const zone = document.getElementById('alertes-bloc');
+    if (!zone || !etat) return;
+    const dus = groupesBloc().filter(g => Date.now() - g.debut >= blocMs(g));
+    const signature = dus.map(g => g.cle + ':' + g.postes.map(p => p.id).join(',')).join(';');
+    nbAlertesBloc = dus.length;
+    majTitre();
+    if (!forcer && signature === signatureAlertes) return;
+    signatureAlertes = signature;
+    if (dus.some(g => !blocsVus.has(g.cle))){
+      jouerBipMinuteur();
+      try{ if (navigator.vibrate) navigator.vibrate([200, 100, 200]); }catch(e){}
+    }
+    blocsVus = new Set(dus.map(g => g.cle));
+    zone.innerHTML = dus.map((g, i) => {
+      const f = formBloc[g.cle] = formBloc[g.cle] || { jeu: g.jeu, mode: g.mode };
+      const minutes = Math.floor((Date.now() - g.debut) / 60000);
+      const optionsJeu = JEUX_DISPONIBLES.map(j => `<option value="${escapeHtml(j)}"${j === f.jeu ? ' selected' : ''}>${escapeHtml(j)}</option>`).join('');
+      const sugg = (MODES_SUGGERES[f.jeu] || []).map(m => `<option value="${escapeHtml(m)}"></option>`).join('');
+      return `
+        <div class="alerte-bloc" data-cle="${escapeHtml(g.cle)}" role="alert">
+          <div class="alerte-titre">⏱️ ${escapeHtml(g.jeu)}${g.mode ? ' · ' + escapeHtml(g.mode) : ''} : <span class="minutes-bloc">${minutes}</span> min sur ce jeu</div>
+          <div class="petit-texte">${g.postes.map(p => escapeHtml(p.nom)).join(', ')} · on change de jeu ou de mode de jeu ?</div>
+          <div class="auto-ligne">
+            <select class="bloc-jeu">${optionsJeu}</select>
+            <input type="text" class="bloc-mode" list="modes-bloc-${i}" maxlength="40" placeholder="Mode de jeu" value="${escapeHtml(f.mode)}">
+            <datalist id="modes-bloc-${i}">${sugg}</datalist>
+          </div>
+          <div class="alerte-boutons">
+            <button class="primary bloc-changer">🔄 Changer</button>
+            <button class="bloc-continuer">▶ Continuer ${Math.round(blocMs(g) / 60000)} min</button>
+            <button class="bloc-plus-tard" title="Me redemander dans 5 minutes">⏰ Dans 5 min</button>
+          </div>
+        </div>`;
+    }).join('');
+    zone.querySelectorAll('.alerte-bloc').forEach(bloc => {
+      const g = dus.find(x => x.cle === bloc.dataset.cle);
+      if (!g) return;
+      const f = formBloc[g.cle];
+      const ids = g.postes.map(p => p.id);
+      bloc.querySelector('.bloc-jeu').addEventListener('change', e => { f.jeu = e.target.value; renderAlertesBloc(true); });
+      bloc.querySelector('.bloc-mode').addEventListener('input', e => { f.mode = e.target.value; });
+      bloc.querySelector('.bloc-changer').addEventListener('click', () => {
+        majPostes(ids, { jeuAuto: f.jeu, modeAuto: f.mode.trim().slice(0, 40), blocDebut: Date.now() });
+        toast(`🔄 ${g.postes.map(p => p.nom).join(', ')} : ${f.jeu}${f.mode.trim() ? ' · ' + f.mode.trim() : ''}`);
+        delete formBloc[g.cle];
+      });
+      bloc.querySelector('.bloc-continuer').addEventListener('click', () => {
+        majPostes(ids, { blocDebut: Date.now() });
+        toast(`▶ On continue ${Math.round(blocMs(g) / 60000)} min de plus`);
+        delete formBloc[g.cle];
+      });
+      bloc.querySelector('.bloc-plus-tard').addEventListener('click', () => {
+        majPostes(ids, { blocDebut: Date.now() - blocMs(g) + 5 * 60000 });
+        toast('⏰ Je te redemande dans 5 minutes');
+        delete formBloc[g.cle];
+      });
+    });
+  }
+
+  // ----- titre de l'onglet : « (1) ⏱ » quand une question attend, et le nombre de parties en cours -----
+  let nbAlertesBloc = 0;
+  function majTitre(){
+    if (!etat) return;
+    const enCours = etat.postes.filter(p => p.statut === 'encours').length;
+    document.title = (nbAlertesBloc ? `(${nbAlertesBloc}) ⏱ ` : '') + 'Gestion 2K27' + (enCours ? ` · ${enCours} en cours` : '');
+  }
+
+  // ----- prolonger une partie de 5 minutes (le temps ajoute compte comme une pause) -----
+  function prolongerPartie(id){
+    const poste = trouverPoste(id);
+    if (!poste || poste.statut === 'libre') return;
+    majPostes([id], { pausedMs: (poste.pausedMs || 0) + 5 * 60000, attenteDebut: null, attenteJusqua: null });
+    toast(`⏱ +5 min sur ${poste.nom}`);
+  }
+
+  // Le nom tape par le joueur est inapproprie malgre le filtre : on arrete sa partie, il devra retaper un nom
+  function refuserNom(id){
+    const poste = trouverPoste(id);
+    if (!poste) return;
+    if (!confirm(`Nom inapproprié sur ${poste.nom}${poste.joueurs ? ' (« ' + poste.joueurs + ' »)' : ''} ? La partie s'arrête et le joueur devra retaper un nom.`)) return;
+    terminerPourChangement(id, 'Nom refusé');
+    sauvegarder();
+    render();
+    toast(`🚫 Partie arrêtée sur ${poste.nom}`);
+  }
+
+  // ----- supervision : pastille de connexion, jeu non detecte, barre du bloc, resume de la salle -----
+  function debutDuJour(){
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }
+
+  function infosPastille(nom){
+    if (!FIREBASE_ACTIF) return { texte: '', titre: '' };
+    const b = heartbeats[nom];
+    if (!b || !b.vu) return { texte: '⚪', titre: "Ce PC ne s'est jamais connecté" };
+    const ecoule = Date.now() - b.vu;
+    const enLigne = ecoule <= SEUIL_HORS_LIGNE_MS;
+    let texte = enLigne ? '🟢' : '🔴';
+    let titre = enLigne ? 'PC en ligne' : `PC hors ligne depuis ${Math.round(ecoule / 1000)} s`;
+    if (b.version) titre += ` · programme ${b.version}`;
+    if (b.decalageMs != null && Math.abs(b.decalageMs) > 10000){
+      texte += '⏱️';
+      titre += ` · horloge de ce PC décalée de ${Math.round(b.decalageMs / 1000)} s (à corriger dans Windows)`;
+    }
+    return { texte, titre };
+  }
+
+  function pastilleHtml(poste){
+    const i = infosPastille(poste.nom);
+    return i.texte ? `<span class="pastille-conn" data-nom="${escapeHtml(poste.nom)}" title="${escapeHtml(i.titre)}">${i.texte}</span>` : '';
+  }
+
+  function blocBarreHtml(poste){
+    if (!posteAuto(poste) || !poste.jeuAuto || !poste.blocDebut) return '';
+    const total = nombreSur(poste.blocMin) || BLOC_AUTO_MS / 60000;
+    const ecoule = Math.max(0, Date.now() - poste.blocDebut);
+    return `<div class="bloc-barre" data-debut="${Number(poste.blocDebut)}" data-total="${Number(total)}">
+      <span class="bloc-txt">Bloc : ${Math.floor(ecoule / 60000)}/${total} min</span>
+      <div class="bloc-fond"><div class="bloc-rempli" style="width:${Math.min(100, ecoule / (total * 60000) * 100).toFixed(0)}%"></div></div></div>`;
+  }
+
+  function numeroPartie(poste){
+    const debut = debutDuJour();
+    return historiqueComplet().filter(h => h.poste === poste.nom && (h.fin || 0) >= debut).length + 1;
+  }
+
+  function majResume(){
+    const zone = document.getElementById('resume-salle');
+    if (!zone || !etat) return;
+    const debut = debutDuJour();
+    const hist = historiqueComplet().filter(h => (h.fin || 0) >= debut);
+    const joueurs = new Set();
+    hist.forEach(h => String(h.joueurs || '').split(' & ').forEach(n => { const k = n.trim().toLowerCase(); if (k) joueurs.add(k); }));
+    const restes = etat.postes.filter(p => p.statut === 'encours').map(p => minuteurRestantMs(p)).filter(r => r > 0);
+    const prochaine = restes.length ? formatDuree(Math.min(...restes)) : '–';
+    const enLigne = FIREBASE_ACTIF ? etat.postes.filter(p => { const b = heartbeats[p.nom]; return b && b.vu && Date.now() - b.vu <= SEUIL_HORS_LIGNE_MS; }).length : null;
+    zone.innerHTML = `<span><b>${hist.length}</b> partie(s) aujourd'hui</span><span><b>${joueurs.size}</b> joueur(s) différent(s)</span><span>prochaine fin dans <b>${prochaine}</b></span>`
+      + (enLigne !== null ? `<span><b>${enLigne}/${etat.postes.length}</b> PC en ligne</span>` : '');
+  }
+
+  // appelee toutes les secondes : met a jour sans tout redessiner
+  function majSupervision(){
+    if (!etat) return;
+    document.querySelectorAll('.pastille-conn').forEach(el => {
+      const i = infosPastille(el.dataset.nom);
+      el.textContent = i.texte;
+      el.title = i.titre;
+    });
+    document.querySelectorAll('.poste[data-poste-id]').forEach(carte => {
+      const p = trouverPoste(carte.dataset.posteId);
+      if (!p) return;
+      const b = heartbeats[p.nom];
+      const absent = carte.querySelector('.jeu-absent:not(.auto-hors-ligne)');
+      if (absent) absent.hidden = !(p.statut === 'encours' && elapsedPoste(p) > 60000 && b && b.jeuDetecte === false);
+      const horsLigne = carte.querySelector('.auto-hors-ligne');
+      if (horsLigne) horsLigne.hidden = !(FIREBASE_ACTIF && b && b.vu && Date.now() - b.vu > SEUIL_HORS_LIGNE_MS);
+    });
+    document.querySelectorAll('.bloc-barre').forEach(el => {
+      const total = Number(el.dataset.total) * 60000;
+      const ecoule = Math.max(0, Date.now() - Number(el.dataset.debut));
+      el.querySelector('.bloc-txt').textContent = `Bloc : ${Math.floor(ecoule / 60000)}/${Math.round(total / 60000)} min`;
+      const r = el.querySelector('.bloc-rempli');
+      r.style.width = Math.min(100, ecoule / total * 100).toFixed(0) + '%';
+      r.classList.toggle('bientot', ecoule / total > 0.8);
+    });
+    document.querySelectorAll('.alerte-bloc').forEach(el => {
+      const g = groupesBloc().find(x => x.cle === el.dataset.cle);
+      const m = el.querySelector('.minutes-bloc');
+      if (g && m) m.textContent = Math.floor((Date.now() - g.debut) / 60000);
+    });
+    majResume();
+  }
+
+  // Parties de l'historique saisi par l'animateur + parties terminees toutes seules par les PC
+  function historiqueComplet(){
+    const auto = Object.keys(etat.historiqueAuto || {}).map(k => Object.assign({ id: 'auto_' + k }, etat.historiqueAuto[k]));
+    return etat.historique.concat(auto).sort((a, b) => (b.fin || 0) - (a.fin || 0));
+  }
+
+  function attendreFinPartie(id){
+    const poste = trouverPoste(id);
+    if (!poste || !poste.debut) return;
+    poste.attenteDebut = poste.debut;
+    poste.attenteJusqua = Date.now() + RAPPEL_ATTENTE_MS;
+    sauvegarder();
+    render();
+  }
+
+  function jouerBipMinuteur(){
+    try{
+      if (sonsCoupes()) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ctx = new AC();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = 880;
+      gain.gain.value = 0.15;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+      setTimeout(() => { ctx.close().catch(() => {}); }, 700);
+    }catch(e){}
+  }
+
+  function trouverPoste(id){
+    return etat.postes.find(p => p.id === id);
+  }
+
+  function demarrerPartie(id, jeu, joueurs){
+    const poste = trouverPoste(id);
+    if (!poste) return;
+    poste.jeu = jeu.trim();
+    poste.joueurs = joueurs.trim();
+    poste.statut = 'encours';
+    poste.debut = Date.now();
+    poste.pausedMs = 0;
+    poste.pauseDepuis = null;
+    poste.pauseRaison = null;
+    poste.depart = 'staff';
+    poste.mode = null;
+    sauvegarder();
+    render();
+  }
+
+  function togglePause(id){
+    const poste = trouverPoste(id);
+    if (!poste) return;
+    if (poste.statut === 'encours'){
+      poste.statut = 'pause';
+      poste.pauseDepuis = Date.now();
+      poste.pauseRaison = null;
+    } else if (poste.statut === 'pause'){
+      poste.pausedMs += Date.now() - poste.pauseDepuis;
+      poste.pauseDepuis = null;
+      poste.statut = 'encours';
+      poste.pauseRaison = null;
+      etat.globalPausedIds = etat.globalPausedIds.filter(pid => pid !== id);
+    }
+    sauvegarder();
+    render();
+  }
+
+  function ouvrirModaleFin(id, restantGroupe){
+    posteEnAttenteFin = id;
+    const poste = trouverPoste(id);
+    const titre = document.getElementById('modale-titre');
+    titre.textContent = restantGroupe > 1
+      ? `Terminer ${poste ? poste.nom : ''} (reste ${restantGroupe})`
+      : `Terminer ${poste ? poste.nom : 'la partie'}`;
+    const champs = document.getElementById('modale-champs');
+    const defs = poste ? CHAMPS_RESULTAT_PAR_JEU[poste.jeu] : null;
+    if (defs){
+      champs.innerHTML = defs.map(c =>
+        `<label for="champ-${c.id}">${escapeHtml(c.label)}</label>
+         <input type="${c.type}" id="champ-${c.id}" placeholder="${escapeHtml(c.placeholder)}">`
+      ).join('');
+    } else {
+      champs.innerHTML = `<label for="champ-resultat">Résultat / gagnant</label>
+        <input type="text" id="champ-resultat" placeholder="Ex : Alice gagne 3-1">`;
+    }
+    document.getElementById('overlay-terminer').classList.remove('cache');
+    const premierChamp = champs.querySelector('input');
+    if (premierChamp) premierChamp.focus();
+  }
+
+  function fermerModaleFin(){
+    posteEnAttenteFin = null;
+    fileTerminerGroupe = [];
+    document.getElementById('overlay-terminer').classList.add('cache');
+  }
+
+  function supprimerHistorique(id){
+    if (String(id).startsWith('auto_')){
+      // entree ajoutee par un PC : on ne supprime que cette entree dans la base
+      const cle = String(id).slice(5);
+      delete etat.historiqueAuto[cle];
+      if (FIREBASE_ACTIF && firebaseRef) firebaseRef.child('historiqueAuto/' + cle).remove();
+      else sauvegarder();
+      render();
+      return;
+    }
+    etat.historique = etat.historique.filter(h => h.id !== id);
+    sauvegarder();
+    render();
+  }
+
+  function ajouterPoste(){
+    const numero = etat.postes.length + 1;
+    etat.postes.push({
+      id: idUnique('poste'),
+      nom: 'Poste ' + numero,
+      jeu: '',
+      joueurs: '',
+      statut: 'libre',
+      debut: null,
+      pausedMs: 0,
+      pauseDepuis: null,
+      pauseRaison: null
+    });
+    sauvegarder();
+    render();
+  }
+
+  function supprimerPoste(id){
+    const poste = trouverPoste(id);
+    if (!poste) return;
+    if (poste.statut !== 'libre' && !confirm('Ce poste a une partie en cours. La supprimer sans l\'enregistrer dans l\'historique ?')){
+      return;
+    }
+    etat.postes = etat.postes.filter(p => p.id !== id);
+    etat.globalPausedIds = etat.globalPausedIds.filter(pid => pid !== id);
+    sauvegarder();
+    render();
+  }
+
+  function renommerPoste(id, nom){
+    const poste = trouverPoste(id);
+    if (!poste) return;
+    poste.nom = nom.trim() || poste.nom;
+    sauvegarder();
+  }
+
+  // Bascule pause/reprise appliquee a un objet etat (local ou celui lu par une
+  // transaction Firebase, voir togglePauseGlobale ci-dessous).
+  function appliquerTogglePause(donnees){
+    if (!donnees.globalPauseActive){
+      donnees.globalPausedIds = donnees.postes.filter(p => p.statut === 'encours').map(p => p.id);
+      donnees.globalPausedIds.forEach(id => {
+        const poste = donnees.postes.find(p => p.id === id);
+        poste.statut = 'pause';
+        poste.pauseDepuis = Date.now();
+        poste.pauseRaison = 'annonce';
+      });
+      donnees.globalPauseActive = true;
+    } else {
+      donnees.globalPausedIds.forEach(id => {
+        const poste = donnees.postes.find(p => p.id === id);
+        if (poste && poste.statut === 'pause'){
+          poste.pausedMs += Date.now() - poste.pauseDepuis;
+          poste.pauseDepuis = null;
+          poste.statut = 'encours';
+          poste.pauseRaison = null;
+        }
+      });
+      donnees.globalPausedIds = [];
+      donnees.globalPauseActive = false;
+    }
+  }
+
+  // Plusieurs personnes peuvent appuyer sur "Pause annonce" au meme moment depuis
+  // des appareils differents. Un simple firebaseRef.set(etat) (comme partout ailleurs
+  // dans l'appli) ecraserait betement la version du serveur avec une copie locale
+  // qui peut deja etre perimee de quelques centaines de ms - dans le pire cas, le
+  // deuxieme clic annulerait sans le vouloir l'action du premier, ou effacerait un
+  // changement fait sur un autre poste entre-temps. Pour CE bouton precis (le seul ou
+  // plusieurs personnes visent explicitement le meme clic au meme instant), on utilise
+  // une transaction Firebase : le serveur relit la vraie valeur courante et reessaie
+  // tout seul en cas de conflit, au lieu du "dernier ecrivain gagne" habituel.
+  function togglePauseGlobale(){
+    if (FIREBASE_ACTIF && firebaseRef){
+      firebaseRef.transaction(donneesServeur => {
+        if (!donneesServeur || !donneesServeur.postes) return donneesServeur;
+        appliquerTogglePause(donneesServeur);
+        return donneesServeur;
+      });
+      return;
+    }
+    appliquerTogglePause(etat);
+    sauvegarder();
+    render();
+  }
+
+  // "Terminer un jeu" : on choisit d'abord quel jeu parmi ceux actuellement joues
+  // (regroupe par la valeur exacte de poste.jeu), puis seuls les postes de ce jeu
+  // demandent leur resultat (une modale a la fois), sont clotures dans l'historique,
+  // puis remis en "libre" (donc reconfigurables tout de suite sur le site) MAIS
+  // gardent le PC physique verrouille ("changement de jeu") jusqu'a ce qu'une
+  // nouvelle partie soit demarree dessus. Remplace l'ancien "Tout terminer" (qui
+  // terminait TOUS les postes actifs sans distinction de jeu).
+  let fileTerminerGroupe = [];
+
+  function lancerTerminerJeu(){
+    const actifs = etat.postes.filter(p => p.statut === 'encours' || p.statut === 'pause');
+    if (actifs.length === 0) return;
+    const parJeu = {};
+    actifs.forEach(p => {
+      const nomJeu = p.jeu || 'Jeu non précisé';
+      (parJeu[nomJeu] = parJeu[nomJeu] || []).push(p.id);
+    });
+    const liste = document.getElementById('liste-jeux-actifs');
+    liste.innerHTML = Object.entries(parJeu).map(([jeu, ids]) => {
+      const libelle = ids.length > 1 ? `${jeu} (${ids.length} postes)` : jeu;
+      return `<button type="button" class="choix-jeu" data-jeu="${escapeHtml(jeu)}">${escapeHtml(libelle)}</button>`;
+    }).join('');
+    document.getElementById('overlay-choisir-jeu').classList.remove('cache');
+  }
+
+  function fermerChoixJeu(){
+    document.getElementById('overlay-choisir-jeu').classList.add('cache');
+  }
+
+  function choisirJeuATerminer(jeu){
+    const ids = etat.postes
+      .filter(p => (p.statut === 'encours' || p.statut === 'pause') && (p.jeu || 'Jeu non précisé') === jeu)
+      .map(p => p.id);
+    fermerChoixJeu();
+    if (ids.length === 0) return;
+    const texte = ids.length > 1
+      ? `Terminer les ${ids.length} parties de ${jeu} en cours et verrouiller ces postes le temps de les reconfigurer ?`
+      : `Terminer cette partie de ${jeu} et verrouiller ce poste le temps de le reconfigurer ?`;
+    if (!confirm(texte)) return;
+    fileTerminerGroupe = ids;
+    traiterProchainTerminerGroupe();
+  }
+
+  function traiterProchainTerminerGroupe(){
+    if (fileTerminerGroupe.length === 0) return;
+    ouvrirModaleFin(fileTerminerGroupe[0], fileTerminerGroupe.length);
+  }
+
+  function terminerPourChangement(id, resultat){
+    const poste = trouverPoste(id);
+    if (!poste) return;
+    etat.historique.unshift({
+      id: idUnique('hist'),
+      poste: poste.nom,
+      jeu: poste.jeu,
+      mode: poste.mode || '',
+      joueurs: poste.joueurs,
+      fin: Date.now(),
+      dureeMs: elapsedPoste(poste),
+      resultat: resultat.trim() || '—'
+    });
+    poste.jeu = '';
+    poste.joueurs = '';
+    poste.debut = null;
+    poste.pausedMs = 0;
+    poste.statut = 'libre';
+    poste.pauseDepuis = null;
+    poste.attenteDebut = null;
+    poste.attenteJusqua = null;
+    poste.depart = null;
+    poste.mode = null;
+    // en mode automatique le PC n'est pas "verrouille pour changement" : c'est l'ecran de saisie du nom qui attend le joueur suivant
+    poste.pauseRaison = poste.auto ? null : 'changement';
+    etat.globalPausedIds = etat.globalPausedIds.filter(pid => pid !== id);
+  }
+
+  function debloquerPcPoste(id){
+    const poste = trouverPoste(id);
+    if (poste && poste.pauseRaison === 'changement'){
+      poste.pauseRaison = null;
+    }
+    sauvegarder();
+    render();
+  }
+
+  function exporterDonnees(){
+    const blob = new Blob([JSON.stringify(etat, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const date = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    a.href = url;
+    a.download = `festival2k27-parties-${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function importerDonnees(fichier){
+    const lecteur = new FileReader();
+    lecteur.onload = e => {
+      try{
+        const donnees = JSON.parse(e.target.result);
+        if (!donnees.postes || !donnees.historique) throw new Error('format invalide');
+        if (!confirm('Remplacer les données actuelles par celles du fichier importé ?')) return;
+        etat = donnees;
+        etat.globalPauseActive = etat.globalPauseActive || false;
+        etat.globalPausedIds = etat.globalPausedIds || [];
+        etat.tournois = normaliserTournois(etat.tournois);
+        assainirEtat(etat);
+        sauvegarder();
+        render();
+      }catch(err){
+        alert("Ce fichier n'est pas un export valide de cet outil.");
+      }
+    };
+    lecteur.readAsText(fichier);
+  }
+
+  function exporterCsv(){
+    const echapperCsv = (val) => {
+      const s = String(val ?? '');
+      return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const entetes = ['Date', 'Heure', 'Poste', 'Jeu', 'Mode', 'Joueurs', 'Résultat', 'Durée', 'Durée (min)', 'Source'];
+    const lignes = historiqueComplet().map(h => {
+      const d = new Date(h.fin);
+      return [
+        d.toLocaleDateString('fr-FR'),
+        d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        h.poste, h.jeu || '', h.mode || '', h.joueurs || '', h.resultat, formatDuree(h.dureeMs),
+        String(Math.round((h.dureeMs || 0) / 6000) / 10).replace('.', ','),
+        String(h.id).startsWith('auto_') ? 'automatique' : 'animateur'
+      ];
+    });
+    // ';' comme séparateur (pas ',') : Excel en français utilise la virgule comme
+    // séparateur décimal, un CSV en virgules s'ouvrirait mal groupé en une seule colonne.
+    const contenu = [entetes, ...lignes].map(l => l.map(echapperCsv).join(';')).join('\r\n');
+    // BOM UTF-8 en tête : sans lui, Excel affiche les accents en mojibake.
+    const blob = new Blob(['﻿' + contenu], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const date = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    a.href = url;
+    a.download = `festival2k27-historique-${date}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function bilanTexte(){
+    const hist = historiqueComplet();
+    const aujourdhui = hist.filter(h => (h.fin || 0) >= debutDuJour());
+    const joueurs = new Set();
+    hist.forEach(h => String(h.joueurs || '').split(' & ').forEach(n => { const k = n.trim().toLowerCase(); if (k) joueurs.add(k); }));
+    const parJeu = {};
+    hist.forEach(h => { const j = h.jeu || 'Non précisé'; parJeu[j] = (parJeu[j] || 0) + 1; });
+    const moyenne = hist.length ? Math.round(hist.reduce((t, h) => t + (h.dureeMs || 0), 0) / hist.length / 60000 * 10) / 10 : 0;
+    return [`Bilan 2K27 (${new Date().toLocaleString('fr-FR')})`,
+      `Parties terminées : ${hist.length} (dont ${aujourdhui.length} aujourd'hui)`,
+      `Joueurs différents : ${joueurs.size}`,
+      `Durée moyenne d'une partie : ${String(moyenne).replace('.', ',')} min`,
+      ...Object.entries(parJeu).sort((a, b) => b[1] - a[1]).map(([j, n]) => `- ${j} : ${n} partie(s)`)].join('\n');
+  }
+
+  function ouvrirStats(){
+    const histComplet = historiqueComplet();
+    const total = histComplet.length;
+    const parJeu = {};
+    const parMode = {};
+    const parPoste = {};
+    const tempsParJeu = {};
+    const parHeure = {};
+    const joueurs = {};
+    let sommeMs = 0;
+    histComplet.forEach(h => {
+      const jeu = h.jeu || 'Non précisé';
+      parJeu[jeu] = (parJeu[jeu] || 0) + 1;
+      if (h.mode) parMode[h.mode] = (parMode[h.mode] || 0) + 1;
+      parPoste[h.poste] = (parPoste[h.poste] || 0) + 1;
+      tempsParJeu[jeu] = (tempsParJeu[jeu] || 0) + (h.dureeMs || 0);
+      sommeMs += h.dureeMs || 0;
+      const heure = new Date(h.fin).getHours() + ' h';
+      parHeure[heure] = (parHeure[heure] || 0) + 1;
+      String(h.joueurs || '').split(' & ').forEach(n => {
+        const k = n.trim();
+        if (!k) return;
+        const cle = k.toLowerCase();
+        joueurs[cle] = joueurs[cle] || { nom: k, n: 0 };
+        joueurs[cle].n++;
+      });
+    });
+    const enCours = etat.postes.filter(p => p.statut === 'encours').length;
+    const enPause = etat.postes.filter(p => p.statut === 'pause').length;
+    const versLignes = (obj, format) => Object.entries(obj)
+      .sort((a, b) => b[1] - a[1])
+      .map(([nom, n]) => `<div class="stat-ligne"><span>${escapeHtml(nom)}</span><span>${format ? format(n) : n}</span></div>`)
+      .join('');
+    const moyenne = total ? Math.round(sommeMs / total / 60000 * 10) / 10 : 0;
+    const assidus = Object.values(joueurs).sort((a, b) => b.n - a.n).slice(0, 5).filter(j => j.n > 1);
+    document.getElementById('stats-contenu').innerHTML = `
+      <div class="stat-resume">
+        <div><strong>${total}</strong> partie(s) terminée(s) au total · <strong>${Object.keys(joueurs).length}</strong> joueur(s) différent(s)</div>
+        <div class="petit-texte">${total ? `Durée moyenne d'une partie : ${String(moyenne).replace('.', ',')} min · ` : ''}${enCours} poste(s) en cours · ${enPause} en pause en ce moment</div>
+      </div>
+      <h4>Parties par jeu</h4>
+      ${versLignes(parJeu) || '<div class="vide">Aucune partie terminée pour le moment.</div>'}
+      ${Object.keys(parMode).length ? `<h4>Parties par mode</h4>${versLignes(parMode)}` : ''}
+      ${total > 0 ? `<h4>Temps de jeu par jeu</h4>${versLignes(tempsParJeu, ms => formatDuree(ms))}` : ''}
+      ${total > 0 ? `<h4>Parties par poste</h4>${versLignes(parPoste)}` : ''}
+      ${total > 0 ? `<h4>Parties par heure</h4>${versLignes(parHeure)}` : ''}
+      ${assidus.length ? `<h4>Joueurs les plus assidus</h4>${assidus.map(j => `<div class="stat-ligne"><span>${escapeHtml(j.nom)}</span><span>${j.n}</span></div>`).join('')}` : ''}
+      <div class="poste-actions" style="margin-top:14px"><button type="button" id="btn-copier-bilan">📋 Copier le bilan</button></div>
+    `;
+    document.getElementById('btn-copier-bilan').addEventListener('click', () => {
+      const texte = bilanTexte();
+      (navigator.clipboard ? navigator.clipboard.writeText(texte) : Promise.reject()).then(() => toast('📋 Bilan copié'), () => toast('Copie impossible'));
+    });
+    document.getElementById('overlay-stats').classList.remove('cache');
+  }
+
+  function fermerStats(){
+    document.getElementById('overlay-stats').classList.add('cache');
+  }
+
+  // --- Tournois (bracket gagnants/perdants) ---
+  // Principe simplifie, pense pour un festival jeunes/scolaire (pas de vraie tete de
+  // serie, pas de "reset" de finale comme dans un double elimination officiel) :
+  // - Toutes les equipes commencent cote "gagnants".
+  // - Perdre un match cote "gagnants" fait juste tomber cote "perdants" (repechage),
+  //   pas d'elimination immediate.
+  // - Perdre un match cote "perdants" elimine (deuxieme defaite = sorti du tournoi).
+  // - Quand il ne reste qu'1 equipe de chaque cote, une finale (match unique) decide
+  //   du vainqueur.
+  function ouvrirNouveauTournoi(){
+    document.getElementById('champ-nom-tournoi').value = '';
+    document.getElementById('champ-equipes-tournoi').value = '';
+    const champJeuAutre = document.getElementById('champ-jeu-autre-tournoi');
+    champJeuAutre.value = '';
+    champJeuAutre.style.display = 'none';
+    const selectJeu = document.getElementById('champ-jeu-tournoi');
+    selectJeu.innerHTML = JEUX_DISPONIBLES.map(j => `<option value="${j}">${j}</option>`).join('')
+      + '<option value="Autre">Autre...</option>';
+    document.getElementById('overlay-nouveau-tournoi').classList.remove('cache');
+  }
+
+  function fermerNouveauTournoi(){
+    document.getElementById('overlay-nouveau-tournoi').classList.add('cache');
+  }
+
+  function creerTournoi(){
+    const nom = document.getElementById('champ-nom-tournoi').value.trim();
+    const jeu = document.getElementById('champ-jeu-tournoi').value;
+    const jeuAutre = document.getElementById('champ-jeu-autre-tournoi').value.trim();
+    const brut = document.getElementById('champ-equipes-tournoi').value;
+    const noms = [...new Set(brut.split('\n').map(s => s.trim()).filter(Boolean))];
+    if (!nom){ alert("Donne un nom au tournoi."); return; }
+    if (noms.length < 2){ alert("Il faut au moins 2 équipes (une par ligne, sans doublon)."); return; }
+    etat.tournois.push({
+      id: idUnique('tournoi'),
+      nom, jeu,
+      jeuAutre: jeu === 'Autre' ? jeuAutre : '',
+      termine: false,
+      vainqueurFinal: null,
+      equipes: noms.map(n => ({ id: idUnique('equipe'), nom: n, statut: 'gagnants' })),
+      matchs: []
+    });
+    sauvegarder();
+    fermerNouveauTournoi();
+    render();
+  }
+
+  // Le jeu joué determine ce qui s'affiche sur le poste une fois le match demarre
+  // (voir demarrerMatchTournoi) : "Autre" a besoin d'un intitule libre, comme pour
+  // le meme choix sur une carte de poste.
+  function jeuAffichageTournoi(tournoi){
+    return tournoi.jeu === 'Autre' ? (tournoi.jeuAutre || 'Autre') : tournoi.jeu;
+  }
+
+  function genererTourBracket(tournoiId, bracket){
+    const tournoi = etat.tournois.find(t => t.id === tournoiId);
+    if (!tournoi) return;
+    const enAttente = new Set();
+    tournoi.matchs.forEach(m => {
+      if (m.statut === 'attente'){ enAttente.add(m.equipeA); if (m.equipeB) enAttente.add(m.equipeB); }
+    });
+    const eligibles = tournoi.equipes.filter(e => e.statut === bracket && !enAttente.has(e.id));
+    if (eligibles.length < 2){
+      alert("Pas assez d'équipes pour créer des matchs ici : il en faut au moins 2 qui ne jouent pas déjà.");
+      return;
+    }
+    // Tirage au sort simple : pas de classement/tete de serie prealable a gerer.
+    const melange = [...eligibles];
+    for (let i = melange.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [melange[i], melange[j]] = [melange[j], melange[i]];
+    }
+    const tourPrecedent = tournoi.matchs.filter(m => m.bracket === bracket).reduce((max, m) => Math.max(max, m.tour), 0);
+    const numeroTour = tourPrecedent + 1;
+    for (let i = 0; i < melange.length; i += 2){
+      if (i + 1 < melange.length){
+        tournoi.matchs.push({
+          id: idUnique('match'), bracket, tour: numeroTour,
+          equipeA: melange[i].id, equipeB: melange[i + 1].id,
+          vainqueur: null, statut: 'attente', bye: false, posteIdA: null, posteIdB: null
+        });
+      } else {
+        // Nombre impair d'equipes ce tour-ci : la derniere est exemptee (qualifiee
+        // sans jouer), evite d'avoir besoin d'un nombre d'equipes en puissance de 2.
+        tournoi.matchs.push({
+          id: idUnique('match'), bracket, tour: numeroTour,
+          equipeA: melange[i].id, equipeB: null,
+          vainqueur: melange[i].id, statut: 'termine', bye: true
+        });
+      }
+    }
+    sauvegarder();
+    render();
+  }
+
+  function tournoiPeutLancerFinale(tournoi){
+    if (tournoi.termine) return false;
+    if (tournoi.matchs.some(m => m.statut === 'attente')) return false;
+    if (tournoi.matchs.some(m => m.bracket === 'finale')) return false;
+    const gagnantsActifs = tournoi.equipes.filter(e => e.statut === 'gagnants');
+    const perdantsActifs = tournoi.equipes.filter(e => e.statut === 'perdants');
+    return gagnantsActifs.length === 1 && perdantsActifs.length === 1;
+  }
+
+  function lancerFinale(tournoiId){
+    const tournoi = etat.tournois.find(t => t.id === tournoiId);
+    if (!tournoi || !tournoiPeutLancerFinale(tournoi)) return;
+    const finalisteGagnants = tournoi.equipes.find(e => e.statut === 'gagnants');
+    const finalistePerdants = tournoi.equipes.find(e => e.statut === 'perdants');
+    tournoi.matchs.push({
+      id: idUnique('match'), bracket: 'finale', tour: 1,
+      equipeA: finalisteGagnants.id, equipeB: finalistePerdants.id,
+      vainqueur: null, statut: 'attente', bye: false, posteIdA: null, posteIdB: null
+    });
+    sauvegarder();
+    render();
+  }
+
+  // Un match se joue sur deux PC : un par equipe (posteIdA et posteIdB). Les anciens
+  // matchs, lances avec un seul poste (champ posteId), restent lisibles.
+  function postesDuMatch(m){
+    const ids = [m.posteIdA, m.posteIdB].filter(Boolean);
+    if (!ids.length && m.posteId) ids.push(m.posteId);
+    return ids;
+  }
+
+  function demarrerMatchTournoi(tournoiId, matchId, posteIdA, posteIdB){
+    const tournoi = etat.tournois.find(t => t.id === tournoiId);
+    if (!tournoi) return;
+    const match = tournoi.matchs.find(m => m.id === matchId);
+    if (!match || match.statut !== 'attente' || postesDuMatch(match).length) return;
+    if (!posteIdA || !posteIdB || posteIdA === posteIdB){
+      alert("Choisis deux postes différents : chaque équipe joue sur son propre PC.");
+      return;
+    }
+    const posteA = trouverPoste(posteIdA);
+    const posteB = trouverPoste(posteIdB);
+    if (!posteA || !posteB || posteA.statut !== 'libre' || posteB.statut !== 'libre'){
+      alert("Un des deux postes n'est plus libre, choisis-en d'autres.");
+      render();
+      return;
+    }
+    const nomEquipe = id => { const e = tournoi.equipes.find(x => x.id === id); return e ? e.nom : '?'; };
+    const nomA = nomEquipe(match.equipeA);
+    const nomB = nomEquipe(match.equipeB);
+    const jeu = jeuAffichageTournoi(tournoi);
+    // Meme effet que le bouton "Demarrer" d'un poste normal (voir demarrerPartie), sur
+    // chacun des deux PC : le poste passe "en cours", ce qui declenche le lancement du
+    // jeu sur le PC (verrou_poste.py), le chrono, et la capture d'ecran.
+    [[posteA, nomA, nomB], [posteB, nomB, nomA]].forEach(([poste, nom, adversaire]) => {
+      poste.jeu = jeu;
+      poste.joueurs = `${nom} (contre ${adversaire})`;
+      poste.statut = 'encours';
+      poste.debut = Date.now();
+      poste.pausedMs = 0;
+      poste.pauseDepuis = null;
+      poste.pauseRaison = null;
+      poste.depart = 'staff';
+      poste.mode = null;
+    });
+    match.posteIdA = posteIdA;
+    match.posteIdB = posteIdB;
+    sauvegarder();
+    render();
+  }
+
+  function enregistrerResultatMatch(tournoiId, matchId, vainqueurId){
+    const tournoi = etat.tournois.find(t => t.id === tournoiId);
+    if (!tournoi) return;
+    const match = tournoi.matchs.find(m => m.id === matchId);
+    if (!match || match.statut !== 'attente') return;
+    const perdantId = match.equipeA === vainqueurId ? match.equipeB : match.equipeA;
+    const equipeVainqueur = tournoi.equipes.find(e => e.id === vainqueurId);
+    const equipePerdant = tournoi.equipes.find(e => e.id === perdantId);
+    if (!equipeVainqueur || !equipePerdant) return;
+    if (!confirm(`Confirmer : "${equipeVainqueur.nom}" bat "${equipePerdant.nom}" ?`)) return;
+    match.statut = 'termine';
+    match.vainqueur = vainqueurId;
+    // Libere/termine vraiment les postes du match, un par equipe (historique + verrou
+    // "changement de jeu"), sauf si quelqu'un a deja termine un poste directement depuis
+    // sa carte (il n'est alors plus "en cours", pas la peine de le refaire).
+    postesDuMatch(match).forEach(idPoste => {
+      const posteMatch = trouverPoste(idPoste);
+      if (posteMatch && (posteMatch.statut === 'encours' || posteMatch.statut === 'pause')){
+        terminerPourChangement(idPoste, `${equipeVainqueur.nom} gagne`);
+      }
+    });
+    if (match.bracket === 'gagnants'){
+      equipePerdant.statut = 'perdants';
+    } else if (match.bracket === 'perdants'){
+      equipePerdant.statut = 'eliminee';
+    } else if (match.bracket === 'finale'){
+      equipeVainqueur.statut = 'championne';
+      tournoi.termine = true;
+      tournoi.vainqueurFinal = vainqueurId;
+    }
+    sauvegarder();
+    render();
+  }
+
+  function supprimerTournoi(id){
+    if (!confirm('Supprimer ce tournoi et tout son historique de matchs ?')) return;
+    etat.tournois = etat.tournois.filter(t => t.id !== id);
+    sauvegarder();
+    render();
+  }
+
+  function creerCarteTournoi(tournoi){
+    const carte = document.createElement('div');
+    carte.className = 'carte-tournoi';
+
+    const nomEquipe = id => {
+      const e = tournoi.equipes.find(x => x.id === id);
+      return e ? e.nom : '?';
+    };
+    const listeEquipes = liste => liste.length
+      ? liste.map(e => `<span class="equipe-tag">${escapeHtml(e.nom)}</span>`).join('')
+      : '<span class="petit-texte">Aucune pour le moment</span>';
+
+    const gagnants = tournoi.equipes.filter(e => e.statut === 'gagnants');
+    const perdants = tournoi.equipes.filter(e => e.statut === 'perdants');
+    const eliminees = tournoi.equipes.filter(e => e.statut === 'eliminee');
+    const enAttente = tournoi.matchs.filter(m => m.statut === 'attente');
+    const termines = tournoi.matchs.filter(m => m.statut === 'termine').slice().reverse();
+    const postesLibres = etat.postes.filter(p => p.statut === 'libre');
+
+    const matchsAttenteHtml = enAttente.map(m => {
+      const enTete = `<span class="petit-texte">${m.bracket === 'finale' ? '🏆 Finale' : (m.bracket === 'gagnants' ? 'Équipes invaincues' : 'Équipes battues une fois') + ' — tour ' + m.tour}</span>`;
+      if (!postesDuMatch(m).length){
+        // Pas encore assigne : chaque equipe joue sur son propre PC, il faut donc
+        // choisir deux postes libres pour pouvoir jouer ce match (ça lance vraiment le
+        // jeu/le verrou/le chrono sur les deux postes, comme un demarrage normal).
+        const options = (choisi) => postesLibres.map((p, i) =>
+          `<option value="${p.id}"${i === choisi ? ' selected' : ''}>${escapeHtml(p.nom)}</option>`).join('');
+        const contenu = postesLibres.length >= 2
+          ? `<div class="match-demarrer-deux">
+               <label class="petit-texte">PC de ${escapeHtml(nomEquipe(m.equipeA))}
+                 <select class="select-poste-match" data-match="${m.id}" data-equipe="A">${options(0)}</select>
+               </label>
+               <label class="petit-texte">PC de ${escapeHtml(nomEquipe(m.equipeB))}
+                 <select class="select-poste-match" data-match="${m.id}" data-equipe="B">${options(1)}</select>
+               </label>
+               <button class="small primary btn-demarrer-match" data-match="${m.id}">▶ Démarrer</button>
+             </div>`
+          : `<div class="petit-texte">Il faut 2 postes libres (un PC par équipe) — ${postesLibres.length} pour l'instant.</div>`;
+        return `
+          <div class="match-attente">
+            ${enTete}
+            <div class="petit-texte">${escapeHtml(nomEquipe(m.equipeA))} vs ${escapeHtml(nomEquipe(m.equipeB))}</div>
+            ${contenu}
+          </div>
+        `;
+      }
+      const nomPoste = id => { const p = trouverPoste(id); return p ? escapeHtml(p.nom) : ''; };
+      let lieuMatch = '';
+      if (m.posteIdA && m.posteIdB){
+        lieuMatch = ` <span class="petit-texte">· ${escapeHtml(nomEquipe(m.equipeA))} sur ${nomPoste(m.posteIdA)}, ${escapeHtml(nomEquipe(m.equipeB))} sur ${nomPoste(m.posteIdB)}</span>`;
+      } else if (m.posteId && nomPoste(m.posteId)){
+        lieuMatch = ` <span class="petit-texte">· sur ${nomPoste(m.posteId)}</span>`;
+      }
+      return `
+        <div class="match-attente">
+          ${enTete}${lieuMatch}
+          <div class="match-choix">
+            <button class="small btn-declarer-vainqueur" data-match="${m.id}" data-vainqueur="${m.equipeA}">🏆 ${escapeHtml(nomEquipe(m.equipeA))}</button>
+            <span class="petit-texte">vs</span>
+            <button class="small btn-declarer-vainqueur" data-match="${m.id}" data-vainqueur="${m.equipeB}">🏆 ${escapeHtml(nomEquipe(m.equipeB))}</button>
+          </div>
+        </div>
+      `;
+    }).join('') || '<div class="petit-texte">Aucun match pour le moment.</div>';
+
+    const historiqueHtml = termines.map(m => {
+      if (m.bye) return `<div>${escapeHtml(nomEquipe(m.equipeA))} — exempté(e) (qualifié(e) sans jouer)</div>`;
+      const bracketTxt = m.bracket === 'finale' ? 'Finale' : (m.bracket === 'gagnants' ? 'Invaincues' : 'Battues une fois');
+      return `<div>[${bracketTxt}] ${escapeHtml(nomEquipe(m.equipeA))} vs ${escapeHtml(nomEquipe(m.equipeB))} → <strong>${escapeHtml(nomEquipe(m.vainqueur))}</strong></div>`;
+    }).join('');
+
+    const peutFinale = tournoiPeutLancerFinale(tournoi);
+
+    // Une phrase qui dit quoi faire maintenant (affichage seulement).
+    const matchsNonDemarres = enAttente.filter(m => !postesDuMatch(m).length);
+    const matchsEnCours = enAttente.filter(m => postesDuMatch(m).length);
+    let aideEtape = "Étape 1 : clique « Créer les matchs » pour tirer au sort les premières rencontres.";
+    if (matchsNonDemarres.length && matchsEnCours.length) aideEtape = "Démarre les autres matchs (un PC par équipe), et clique sur l'équipe gagnante quand un match est fini.";
+    else if (matchsNonDemarres.length) aideEtape = "Étape 2 : choisis un PC pour chaque équipe, puis clique ▶ Démarrer.";
+    else if (matchsEnCours.length) aideEtape = "Étape 3 : quand un match est fini, clique sur l'équipe qui a gagné.";
+    else if (peutFinale) aideEtape = "Dernière étape : clique « Lancer la finale ».";
+
+    carte.innerHTML = `
+      <div class="tournoi-entete">
+        <strong>${escapeHtml(tournoi.nom)}</strong>
+        <button class="small danger btn-suppr-tournoi" title="Supprimer ce tournoi" aria-label="Supprimer ce tournoi">🗑</button>
+      </div>
+      <div class="petit-texte">${escapeHtml(jeuAffichageTournoi(tournoi) || 'Jeu non précisé')} · ${tournoi.equipes.length} équipe(s)</div>
+      ${tournoi.termine
+        ? `<div class="tournoi-vainqueur">🏆 Vainqueur : ${escapeHtml(nomEquipe(tournoi.vainqueurFinal))}</div>`
+        : `
+        <div class="etape-aide">${aideEtape}</div>
+        <div class="tournoi-brackets">
+          <div class="bracket-colonne">
+            <h4>Équipes invaincues</h4>
+            <div>${listeEquipes(gagnants)}</div>
+            <button class="small btn-generer-tour" data-bracket="gagnants">🎲 Créer les matchs</button>
+          </div>
+          <div class="bracket-colonne">
+            <h4>Battues une fois</h4>
+            <div>${listeEquipes(perdants)}</div>
+            <button class="small btn-generer-tour" data-bracket="perdants">🎲 Créer les matchs</button>
+          </div>
+        </div>
+        ${peutFinale ? `<button class="btn-lancer-finale primary">🏆 Lancer la finale</button>` : ''}
+        <div class="tournoi-matchs">
+          <h4>Matchs à jouer</h4>
+          ${matchsAttenteHtml}
+        </div>
+        `}
+      ${eliminees.length ? `<div class="petit-texte">Éliminé(e)s : ${eliminees.map(e => escapeHtml(e.nom)).join(', ')}</div>` : ''}
+      ${historiqueHtml ? `<details class="tournoi-historique-detail"><summary>Historique des matchs (${termines.length})</summary>${historiqueHtml}</details>` : ''}
+    `;
+
+    carte.querySelector('.btn-suppr-tournoi').addEventListener('click', () => supprimerTournoi(tournoi.id));
+    carte.querySelectorAll('.btn-generer-tour').forEach(b => {
+      b.addEventListener('click', () => genererTourBracket(tournoi.id, b.dataset.bracket));
+    });
+    const btnFinale = carte.querySelector('.btn-lancer-finale');
+    if (btnFinale) btnFinale.addEventListener('click', () => lancerFinale(tournoi.id));
+    carte.querySelectorAll('.btn-declarer-vainqueur').forEach(b => {
+      b.addEventListener('click', () => enregistrerResultatMatch(tournoi.id, b.dataset.match, b.dataset.vainqueur));
+    });
+    carte.querySelectorAll('.btn-demarrer-match').forEach(b => {
+      b.addEventListener('click', () => {
+        const choix = equipe => carte.querySelector(`.select-poste-match[data-match="${b.dataset.match}"][data-equipe="${equipe}"]`);
+        const selectA = choix('A');
+        const selectB = choix('B');
+        if (selectA && selectB) demarrerMatchTournoi(tournoi.id, b.dataset.match, selectA.value, selectB.value);
+      });
+    });
+
+    return carte;
+  }
+
+  function renderTournois(){
+    const grille = document.getElementById('grille-tournois');
+    grille.innerHTML = '';
+    etat.tournois.forEach(t => grille.appendChild(creerCarteTournoi(t)));
+
+    const carteAjout = document.createElement('div');
+    carteAjout.className = 'carte-ajout';
+    carteAjout.textContent = '+ Créer un tournoi';
+    carteAjout.addEventListener('click', ouvrirNouveauTournoi);
+    grille.appendChild(carteAjout);
+
+    document.getElementById('compte-tournois').textContent = `(${etat.tournois.length})`;
+  }
+
+  function creerCartePoste(poste){
+    const div = document.createElement('div');
+    div.className = 'poste statut-' + poste.statut;
+
+    const pcVerrouille = poste.statut === 'libre' && poste.pauseRaison === 'changement';
+    const badgeTxt = poste.statut === 'libre' ? 'Libre' : poste.statut === 'encours' ? 'En cours' : 'En pause';
+    const pegiActif = PEGI_PAR_JEU[poste.jeu];
+
+    let contenuAction = '';
+    if (poste.statut === 'libre' && posteAuto(poste)){
+      const derniere = historiqueComplet().find(h => h.poste === poste.nom);
+      div.dataset.posteId = poste.id;
+      contenuAction = `
+        <div class="auto-info">
+          <div class="auto-etiquette">🤖 Automatique</div>
+          ${poste.jeuAuto
+            ? `<strong>${escapeHtml(poste.jeuAuto)}</strong>${poste.modeAuto ? ' · ' + escapeHtml(poste.modeAuto) : ''}<br><span class="petit-texte">En attente d'un joueur : il tape son nom sur le PC.</span>`
+            : `<span class="petit-texte">Choisis le jeu dans le panneau « Mode automatique » ci-dessus.</span>`}
+        </div>
+        ${derniere ? `<div class="petit-texte">Dernière partie : ${escapeHtml(derniere.joueurs || '—')} · ${formatDuree(derniere.dureeMs)}</div>` : ''}
+        <div class="auto-hors-ligne jeu-absent" hidden>⚠ Ce PC est hors ligne : l'écran « À toi de jouer ! » ne s'affichera pas.</div>
+        ${blocBarreHtml(poste)}
+        <div class="poste-actions">
+          <button class="btn-manuel">✋ Passer en manuel</button>
+        </div>
+      `;
+    } else if (poste.statut === 'libre'){
+      const optionsJeu = JEUX_DISPONIBLES.map(j => {
+        const libelle = PEGI_PAR_JEU[j] ? `${j} (PEGI ${PEGI_PAR_JEU[j]})` : j;
+        return `<option value="${escapeHtml(j)}">${escapeHtml(libelle)}</option>`;
+      }).join('');
+      contenuAction = `
+        ${pcVerrouille ? `
+        <div class="avis-verrou-pc">
+          🔒 PC verrouillé (changement de jeu) — se débloque en démarrant une partie
+          <button class="lien-debloquer-pc">Débloquer sans démarrer</button>
+        </div>` : ''}
+        <div class="poste-form">
+          <label>À quoi on joue ?</label>
+          <select class="champ-jeu">
+            <option value="">Choisis un jeu…</option>
+            ${optionsJeu}
+            <option value="Autre">Autre...</option>
+          </select>
+          <input type="text" class="champ-jeu-autre" placeholder="Précise le jeu" style="display:none;">
+          <label>Qui joue ?</label>
+          <input type="text" class="champ-joueurs" placeholder="Ex : Alice et Bob">
+        </div>
+        <div class="poste-actions">
+          <button class="primary btn-demarrer">▶ Démarrer la partie</button>
+        </div>
+      `;
+    } else {
+      const etatTemps = etatMinuteur(poste);
+      const minuteur = affichageMinuteur(poste);
+      div.dataset.posteId = poste.id;
+      div.dataset.minuteur = etatTemps;
+      div.classList.add('minuteur-' + etatTemps);
+      const blocTemps = etatTemps === 'demande' ? `
+        <div class="alerte-temps">
+          <div class="alerte-titre">⏰ 10 min écoulées : la partie est-elle terminée ?</div>
+          <div class="alerte-boutons">
+            <button class="primary btn-oui-couper">✅ Oui, couper</button>
+            <button class="btn-non-attendre">⏳ Non, j'attends</button>
+          </div>
+        </div>` : etatTemps === 'attente' ? `
+        <div class="attente-fin">
+          <div>⏳ On attend la fin de la partie · on redemande dans <b class="rappel-txt">${formatDuree(Math.ceil((poste.attenteJusqua - Date.now()) / 1000) * 1000)}</b></div>
+          <button class="primary btn-oui-couper">✅ Terminée : couper</button>
+        </div>` : etatTemps === 'autofin' ? `
+        <div class="auto-fin">🤖 Temps écoulé : le PC ferme le jeu dès que la manche est finie.</div>` : '';
+      const modeTxt = poste.mode ? ` · ${escapeHtml(poste.mode)}` : '';
+      contenuAction = `
+        <div class="chrono${minuteur.depasse ? ' temps-ecoule' : ''}">${minuteur.texte}</div>
+        <div class="chrono-legende">${minuteur.legende}</div>
+        <div class="infos">
+          <strong>${escapeHtml(poste.jeu) || 'Jeu non précisé'}</strong>${modeTxt}${pegiActif ? ` <span class="badge-pegi">PEGI ${pegiActif}</span>` : ''}${partieAutoEnCours(poste) ? ' 🤖' : ''}<br>
+          <span class="joueurs-txt" title="${escapeHtml(poste.joueurs)}">${escapeHtml(poste.joueurs) || 'Joueur(s) non précisé(s)'}</span>
+          <span class="petit-texte"> · partie n° ${numeroPartie(poste)}</span>
+        </div>
+        ${blocTemps}
+        ${blocBarreHtml(poste)}
+        <div class="jeu-absent" hidden>⚠ Le jeu n'est pas détecté sur ce PC : a-t-il démarré ?</div>
+        <div class="poste-actions">
+          <button class="btn-pause">${poste.statut === 'pause' ? '▶ Reprendre' : '⏸ Pause'}</button>
+          <button class="btn-prolonger" title="Ajouter 5 minutes à cette partie">⏱ +5 min</button>
+          <button class="primary btn-terminer">🏁 Terminer</button>
+          ${partieAutoEnCours(poste) ? '<button class="btn-refuser-nom" title="Le nom tapé est inapproprié : la partie s\'arrête et le joueur doit retaper un nom">🚫 Nom refusé</button>' : ''}
+        </div>
+      `;
+    }
+
+    div.innerHTML = `
+      <div class="poste-entete">
+        <input type="text" class="poste-nom champ-nom" value="${escapeHtml(poste.nom)}">
+        <span class="badge ${poste.statut}">${badgeTxt}</span>${pastilleHtml(poste)}
+      </div>
+      ${contenuAction}
+      <div class="poste-pied">
+        <button class="poste-ecran" title="Ouvre l'écran de pause de ce PC (à afficher sur ce PC)">🔒 Écran de pause</button>
+        <button class="poste-suppr" title="Supprimer ce PC" aria-label="Supprimer ce PC">🗑</button>
+      </div>
+    `;
+
+    div.querySelector('.champ-nom').addEventListener('change', e => renommerPoste(poste.id, e.target.value));
+    div.querySelector('.poste-suppr').addEventListener('click', () => supprimerPoste(poste.id));
+    div.querySelector('.poste-ecran').addEventListener('click', () => {
+      window.open('verrouillage.html?poste=' + encodeURIComponent(poste.nom), '_blank');
+    });
+
+    if (poste.statut === 'libre' && posteAuto(poste)){
+      div.querySelector('.btn-manuel').addEventListener('click', () => majPostes([poste.id], { auto: false }));
+    } else if (poste.statut === 'libre'){
+      if (pcVerrouille){
+        div.querySelector('.lien-debloquer-pc').addEventListener('click', () => debloquerPcPoste(poste.id));
+      }
+      const champJeu = div.querySelector('.champ-jeu');
+      const champJeuAutre = div.querySelector('.champ-jeu-autre');
+      champJeu.addEventListener('change', () => {
+        champJeuAutre.style.display = champJeu.value === 'Autre' ? 'block' : 'none';
+        if (champJeu.value === 'Autre') champJeuAutre.focus();
+      });
+      div.querySelector('.btn-demarrer').addEventListener('click', () => {
+        const jeu = champJeu.value === 'Autre' ? champJeuAutre.value : champJeu.value;
+        const joueurs = div.querySelector('.champ-joueurs').value;
+        demarrerPartie(poste.id, jeu, joueurs);
+      });
+    } else {
+      div.querySelector('.btn-pause').addEventListener('click', () => togglePause(poste.id));
+      const demanderFin = () => {
+        fileTerminerGroupe = [poste.id];
+        traiterProchainTerminerGroupe();
+      };
+      div.querySelector('.btn-terminer').addEventListener('click', demanderFin);
+      const btnCouper = div.querySelector('.btn-oui-couper');
+      if (btnCouper) btnCouper.addEventListener('click', demanderFin);
+      const btnAttendre = div.querySelector('.btn-non-attendre');
+      if (btnAttendre) btnAttendre.addEventListener('click', () => attendreFinPartie(poste.id));
+      const btnRefuser = div.querySelector('.btn-refuser-nom');
+      if (btnRefuser) btnRefuser.addEventListener('click', () => refuserNom(poste.id));
+      div.querySelector('.btn-prolonger').addEventListener('click', () => prolongerPartie(poste.id));
+    }
+
+    return div;
+  }
+
+  function escapeHtml(txt){
+    const d = document.createElement('div');
+    d.textContent = txt;
+    // La conversion textContent -> innerHTML n'echappe pas les guillemets (ils ne
+    // posent pas de probleme dans du texte normal) : on le fait nous-memes en plus,
+    // car ce texte est aussi utilise a l'interieur d'attributs HTML entre guillemets
+    // (ex: value="${escapeHtml(...)}"), ou un guillemet non echappe permettrait de
+    // sortir de l'attribut et d'injecter du HTML/JS arbitraire.
+    return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ----- historique : recherche + « aujourd'hui seulement » -----
+  function renderHistorique(){
+    const listeHist = document.getElementById('historique-liste');
+    if (!listeHist || !etat) return;
+    listeHist.innerHTML = '';
+    const tout = historiqueComplet();
+    const recherche = ((document.getElementById('filtre-historique') || {}).value || '').trim().toLowerCase();
+    const aujourdhui = !!(document.getElementById('hist-aujourdhui') || {}).checked;
+    const debut = debutDuJour();
+    const histComplet = tout.filter(h => (!aujourdhui || (h.fin || 0) >= debut)
+      && (!recherche || [h.jeu, h.mode, h.poste, h.joueurs, h.resultat].some(v => String(v || '').toLowerCase().includes(recherche))));
+    if (tout.length === 0){
+      listeHist.innerHTML = '<div class="vide">Aucune partie terminée pour le moment.</div>';
+    } else if (histComplet.length === 0){
+      listeHist.innerHTML = '<div class="vide">Aucune partie ne correspond à ta recherche.</div>';
+    } else {
+      histComplet.forEach(h => {
+        const item = document.createElement('div');
+        item.className = 'historique-item';
+        const heureFin = new Date(h.fin).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        item.innerHTML = `
+          <div class="detail">
+            <span class="titre">${escapeHtml(h.jeu || 'Jeu non précisé')}${h.mode ? ' · ' + escapeHtml(h.mode) : ''} — ${escapeHtml(h.poste)}</span>
+            <span class="sous">${escapeHtml(h.joueurs || 'Joueur(s) non précisé(s)')} · fini à ${heureFin}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div>
+              <div class="resultat">${escapeHtml(h.resultat)}</div>
+              <div class="duree">${formatDuree(h.dureeMs)}</div>
+            </div>
+            <button class="small danger btn-suppr-hist" title="Supprimer cette entrée" aria-label="Supprimer cette entrée">🗑</button>
+          </div>
+        `;
+        item.querySelector('.btn-suppr-hist').addEventListener('click', () => supprimerHistorique(h.id));
+        listeHist.appendChild(item);
+      });
+    }
+    document.getElementById('compte-historique').textContent = histComplet.length === tout.length ? `(${tout.length})` : `(${histComplet.length} sur ${tout.length})`;
+  }
+
+  let derniereSynchro = null;  // heure de la derniere mise a jour des donnees (affichee en bas de page)
+
+  function render(){
+    if (!etat) return;
+    derniereSynchro = Date.now();
+    majTitre();
+    majResume();
+    majPied();
+    const grille = document.getElementById('grille-postes');
+    grille.innerHTML = '';
+    etat.postes.forEach(poste => grille.appendChild(creerCartePoste(poste)));
+    renderAuto();
+    renderAlertesBloc();
+
+    const carteAjout = document.createElement('div');
+    carteAjout.className = 'carte-ajout';
+    carteAjout.textContent = '+ Ajouter un PC';
+    carteAjout.addEventListener('click', ajouterPoste);
+    grille.appendChild(carteAjout);
+
+    document.getElementById('compte-postes').textContent =
+      `· ${etat.postes.filter(p => p.statut === 'libre').length} libre(s) · ${etat.postes.filter(p => p.statut === 'encours').length} en cours · ${etat.postes.filter(p => p.statut === 'pause').length} en pause`;
+
+    renderTournois();
+
+    renderHistorique();
+
+    const btnPauseAnnonce = document.getElementById('btn-pause-annonce');
+    btnPauseAnnonce.textContent = etat.globalPauseActive ? '▶ Reprendre tout' : '⏸ Pause annonce';
+    btnPauseAnnonce.classList.toggle('active', etat.globalPauseActive);
+    btnPauseAnnonce.disabled = !etat.globalPauseActive && !etat.postes.some(p => p.statut === 'encours');
+
+    const btnTerminerJeu = document.getElementById('btn-terminer-jeu');
+    btnTerminerJeu.disabled = !etat.postes.some(p => p.statut === 'encours' || p.statut === 'pause');
+
+    if (FIREBASE_ACTIF){
+      abonnerEcrans();
+      abonnerHeartbeats();
+      renderEcrans();
+    }
+  }
+
+  // ---- Ecrans en direct (facon Veyon) : aperçu envoyé par verrou_poste.py toutes
+  // les 10s pendant une partie active, stocké a part (festival2k27_captures) pour
+  // ne pas alourdir la synchronisation de l'etat principal. Toujours actif (pas de
+  // bouton a cliquer) : les ecouteurs Firebase sont attaches automatiquement des
+  // qu'un poste existe. L'economie de quota vient plutot du cote verrou_poste.py,
+  // qui n'envoie une capture que pendant une partie active (voir plus haut).
+  let refsEcrans = {};
+  let captures = {};
+  let refsHeartbeat = {};
+  let heartbeats = {};
+  const SEUIL_HORS_LIGNE_MS = 25000; // verrou_poste.py envoie un signal toutes les 10s
+
+  function abonnerHeartbeats(){
+    const nomsActuels = new Set(etat.postes.map(p => p.nom));
+    Object.keys(refsHeartbeat).forEach(nom => {
+      if (!nomsActuels.has(nom)){
+        refsHeartbeat[nom].off();
+        delete refsHeartbeat[nom];
+        delete heartbeats[nom];
+      }
+    });
+    etat.postes.forEach(poste => {
+      if (refsHeartbeat[poste.nom]) return;
+      const ref = firebase.database().ref('festival2k27_heartbeat/' + poste.nom);
+      ref.on('value', snapshot => {
+        // ce que le PC envoie est assaini : jamais affiche tel quel
+        const v = snapshot.val();
+        heartbeats[poste.nom] = (v && typeof v === 'object') ? {
+          vu: nombreSur(v.vu),
+          version: texteSur(v.version, 40),
+          jeuDetecte: (v.jeuDetecte === true || v.jeuDetecte === false) ? v.jeuDetecte : null,
+          decalageMs: nombreSur(v.decalageMs)
+        } : null;
+        renderEcrans();
+      });
+      refsHeartbeat[poste.nom] = ref;
+    });
+  }
+
+  function construireStatutConnexion(nomPoste){
+    const battement = heartbeats[nomPoste];
+    if (!battement || !battement.vu){
+      return '<span class="etat-connexion-poste jamais">⚪ Jamais connecté</span>';
+    }
+    const ecouleMs = Date.now() - battement.vu;
+    if (ecouleMs <= SEUIL_HORS_LIGNE_MS){
+      return '<span class="etat-connexion-poste connecte">🟢 Connecté</span>';
+    }
+    const secondes = Math.round(ecouleMs / 1000);
+    return `<span class="etat-connexion-poste hors-ligne">🔴 Hors ligne (${secondes}s)</span>`;
+  }
+
+  function abonnerEcrans(){
+    const nomsActuels = new Set(etat.postes.map(p => p.nom));
+    Object.keys(refsEcrans).forEach(nom => {
+      if (!nomsActuels.has(nom)){
+        refsEcrans[nom].off();
+        delete refsEcrans[nom];
+        delete captures[nom];
+      }
+    });
+    etat.postes.forEach(poste => {
+      if (refsEcrans[poste.nom]) return;
+      const ref = firebase.database().ref('festival2k27_captures/' + poste.nom);
+      ref.on('value', snapshot => {
+        captures[poste.nom] = snapshot.val();
+        renderEcrans();
+      });
+      refsEcrans[poste.nom] = ref;
+    });
+  }
+
+  function renderEcrans(){
+    const grille = document.getElementById('grille-ecrans');
+    grille.innerHTML = '';
+    etat.postes.forEach(poste => {
+      const capture = captures[poste.nom];
+      const statutConnexion = construireStatutConnexion(poste.nom);
+      const div = document.createElement('div');
+      div.className = 'carte-ecran';
+      if (poste.statut !== 'encours'){
+        div.innerHTML = `
+          <div class="nom-ecran">${escapeHtml(poste.nom)} ${statutConnexion}</div>
+          <div class="etat-ecran">Aucune partie en cours</div>
+        `;
+      } else if (!capture || !capture.image || !String(capture.image).startsWith('data:image/')){
+        div.innerHTML = `
+          <div class="nom-ecran">${escapeHtml(poste.nom)} ${statutConnexion}</div>
+          <div class="etat-ecran">En attente du premier aperçu…</div>
+        `;
+      } else {
+        const secondes = Math.max(0, Math.round((Date.now() - capture.maj) / 1000));
+        div.innerHTML = `
+          <div class="nom-ecran">${escapeHtml(poste.nom)} ${statutConnexion}</div>
+          <img src="${escapeHtml(capture.image)}" alt="Aperçu écran">
+          <div class="etat-ecran">Actualisé il y a ${secondes}s</div>
+        `;
+        div.querySelector('img').addEventListener('click', () => ouvrirEcranAgrandi(poste.nom));
+      }
+      grille.appendChild(div);
+    });
+    if (posteEcranAgrandi) mettreAJourEcranAgrandi();
+  }
+
+  // Clic sur un aperçu d'écran = l'affiche en grand (même image, juste plus lisible
+  // que la petite vignette). Se met à jour tout seul si une nouvelle capture arrive
+  // pendant que c'est ouvert, et se ferme tout seul si la partie se termine.
+  let posteEcranAgrandi = null;
+
+  function ouvrirEcranAgrandi(nomPoste){
+    posteEcranAgrandi = nomPoste;
+    mettreAJourEcranAgrandi();
+    document.getElementById('overlay-ecran-agrandi').classList.remove('cache');
+  }
+
+  function fermerEcranAgrandi(){
+    posteEcranAgrandi = null;
+    document.getElementById('overlay-ecran-agrandi').classList.add('cache');
+  }
+
+  function mettreAJourEcranAgrandi(){
+    const poste = etat.postes.find(p => p.nom === posteEcranAgrandi);
+    const capture = captures[posteEcranAgrandi];
+    if (!poste || poste.statut !== 'encours' || !capture || !capture.image || !String(capture.image).startsWith('data:image/')){
+      fermerEcranAgrandi();
+      return;
+    }
+    const secondes = Math.max(0, Math.round((Date.now() - capture.maj) / 1000));
+    document.getElementById('titre-ecran-agrandi').textContent = poste.nom;
+    document.getElementById('img-ecran-agrandi').src = capture.image;
+    document.getElementById('etat-ecran-agrandi').textContent = `Actualisé il y a ${secondes}s`;
+  }
+
+  document.getElementById('btn-pause-annonce').addEventListener('click', togglePauseGlobale);
+  document.getElementById('btn-terminer-jeu').addEventListener('click', lancerTerminerJeu);
+  document.getElementById('jeu-annuler').addEventListener('click', fermerChoixJeu);
+  document.getElementById('liste-jeux-actifs').addEventListener('click', e => {
+    const btn = e.target.closest('.choix-jeu');
+    if (btn) choisirJeuATerminer(btn.dataset.jeu);
+  });
+  document.getElementById('btn-stats').addEventListener('click', ouvrirStats);
+  document.getElementById('fermer-stats').addEventListener('click', fermerStats);
+  document.getElementById('btn-export-csv').addEventListener('click', exporterCsv);
+  document.getElementById('overlay-stats').addEventListener('click', e => {
+    if (e.target.id === 'overlay-stats') fermerStats();
+  });
+  document.getElementById('nouveau-tournoi-annuler').addEventListener('click', fermerNouveauTournoi);
+  document.getElementById('nouveau-tournoi-valider').addEventListener('click', creerTournoi);
+  document.getElementById('overlay-nouveau-tournoi').addEventListener('click', e => {
+    if (e.target.id === 'overlay-nouveau-tournoi') fermerNouveauTournoi();
+  });
+  document.getElementById('champ-jeu-tournoi').addEventListener('change', e => {
+    const champJeuAutre = document.getElementById('champ-jeu-autre-tournoi');
+    champJeuAutre.style.display = e.target.value === 'Autre' ? 'block' : 'none';
+    if (e.target.value === 'Autre') champJeuAutre.focus();
+  });
+
+  document.getElementById('overlay-choisir-jeu').addEventListener('click', e => {
+    if (e.target.id === 'overlay-choisir-jeu') fermerChoixJeu();
+  });
+  document.getElementById('btn-export').addEventListener('click', exporterDonnees);
+  document.getElementById('btn-import').addEventListener('click', () => document.getElementById('fichier-import').click());
+  document.getElementById('fichier-import').addEventListener('change', e => {
+    if (e.target.files[0]) importerDonnees(e.target.files[0]);
+    e.target.value = '';
+  });
+  document.getElementById('modale-annuler').addEventListener('click', fermerModaleFin);
+  document.getElementById('modale-valider').addEventListener('click', () => {
+    const posteFin = trouverPoste(posteEnAttenteFin);
+    const defs = posteFin ? CHAMPS_RESULTAT_PAR_JEU[posteFin.jeu] : null;
+    let resultat;
+    if (defs){
+      const valeurs = {};
+      defs.forEach(c => { valeurs[c.id] = document.getElementById(`champ-${c.id}`).value; });
+      resultat = construireResultat(posteFin.jeu, valeurs);
+    } else {
+      const champResultat = document.getElementById('champ-resultat');
+      resultat = champResultat ? champResultat.value : '';
+    }
+    if (posteEnAttenteFin && fileTerminerGroupe.length > 0){
+      terminerPourChangement(posteEnAttenteFin, resultat);
+      fileTerminerGroupe.shift();
+      sauvegarder();
+      render();
+      if (fileTerminerGroupe.length > 0){
+        traiterProchainTerminerGroupe();
+        return;
+      }
+    }
+    fermerModaleFin();
+  });
+  document.getElementById('modale-champs').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('modale-valider').click();
+  });
+  document.getElementById('fermer-ecran-agrandi').addEventListener('click', fermerEcranAgrandi);
+  document.getElementById('overlay-ecran-agrandi').addEventListener('click', e => {
+    if (e.target.id === 'overlay-ecran-agrandi') fermerEcranAgrandi();
+  });
+  // Verrou d'acces : Ctrl+Maj+Q ouvre l'invite de code (code propre a cet outil, different
+  // de celui de verrou_poste.py, sensible a la casse), memorise sur cet appareil une fois
+  // debloque (cle « _v3 » : changer le nom de la cle reverrouille d'un coup tous les
+  // appareils). Outil interne herberge sur une URL publique (GitHub Pages) : sans ce verrou,
+  // n'importe qui tombant sur le lien pourrait manipuler les postes/verrous en direct pendant
+  // le festival. Le code n'est PAS ecrit dans ce fichier (public) : on ne garde que son
+  // empreinte PBKDF2-SHA256 (250 000 tours). Pour changer le code : lancer
+  // calculer_empreinte_code.py (meme dossier que ce fichier) et remplacer la constante.
+  // Attention : ce verrou masque l'ecran, il ne protege pas la base de donnees (les regles
+  // Firebase s'en chargent).
+  const SEL_ACCES = '2k27-gestion-v2';
+  const EMPREINTE_ACCES = 'b0bdf7cb0b0ac48ec570bacae232c06dd2735d94514d0815778e6d0305f08581';
+  function empreinteAcces(texte){
+    const enc = new TextEncoder();
+    texte = texte.replace(/[\s-]/g, '').toUpperCase(); // majuscules/minuscules, espaces et tirets sans importance
+    return crypto.subtle.importKey('raw', enc.encode(texte), 'PBKDF2', false, ['deriveBits'])
+      .then(cle => crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(SEL_ACCES), iterations: 250000 }, cle, 256))
+      .then(buf => Array.from(new Uint8Array(buf)).map(x => x.toString(16).padStart(2, '0')).join(''));
+  }
+  const gateAcces = document.getElementById('gate-acces');
+  const overlayMdpAcces = document.getElementById('overlay-mdp-acces');
+  const champMdpAcces = document.getElementById('champ-mdp-acces');
+  const mdpAccesErreur = document.getElementById('mdp-acces-erreur');
+
+  function fermerMdpAcces(){
+    overlayMdpAcces.classList.add('cache');
+  }
+  function validerMdpAcces(){
+    empreinteAcces(champMdpAcces.value).then(h => {
+      if (h === EMPREINTE_ACCES){
+        gateAcces.classList.add('cache');
+        try{ localStorage.setItem('2k27_gestion_debloque_v3', 'oui'); }catch(e){}
+        fermerMdpAcces();
+      } else {
+        mdpAccesErreur.classList.add('actif');
+      }
+    }).catch(() => { mdpAccesErreur.classList.add('actif'); });
+  }
+  // Reverrouiller ne demande pas de code (comme fermer une porte a cle ne demande
+  // pas la cle) : seul le DEBLOCAGE exige le code. Utile pour reverrouiller l'outil
+  // en partant du poste, sans devoir se souvenir du code juste pour le reactiver.
+  function reverrouillerAcces(){
+    gateAcces.classList.remove('cache');
+    try{ localStorage.removeItem('2k27_gestion_debloque_v3'); }catch(e){}
+  }
+  function ouvrirMdpAcces(){
+    mdpAccesErreur.classList.remove('actif');
+    champMdpAcces.value = '';
+    overlayMdpAcces.classList.remove('cache');
+    champMdpAcces.focus();
+  }
+  // Bouton tactile : sur tablette/téléphone il n'y a pas de clavier pour Ctrl+Maj+Q.
+  document.getElementById('gate-acces-bouton').addEventListener('click', ouvrirMdpAcces);
+  document.getElementById('mdp-acces-annuler').addEventListener('click', fermerMdpAcces);
+  document.getElementById('mdp-acces-valider').addEventListener('click', validerMdpAcces);
+  champMdpAcces.addEventListener('keydown', e => {
+    if (e.key === 'Enter') validerMdpAcces();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.shiftKey && (e.key === 'Q' || e.key === 'q')){
+      e.preventDefault();
+      if (gateAcces.classList.contains('cache')){
+        reverrouillerAcces();
+      } else {
+        ouvrirMdpAcces();
+      }
+      return;
+    }
+    if (e.key !== 'Escape') return;
+    if (!overlayMdpAcces.classList.contains('cache')) fermerMdpAcces();
+    else if (!document.getElementById('overlay-ecran-agrandi').classList.contains('cache')) fermerEcranAgrandi();
+    else if (!document.getElementById('overlay-choisir-jeu').classList.contains('cache')) fermerChoixJeu();
+    else if (!document.getElementById('overlay-stats').classList.contains('cache')) fermerStats();
+    else if (!document.getElementById('overlay-nouveau-tournoi').classList.contains('cache')) fermerNouveauTournoi();
+    else if (!document.getElementById('overlay-terminer').classList.contains('cache')) fermerModaleFin();
+  });
+
+  // Application installable (PWA) : le bouton n'apparaît que si le navigateur propose l'installation
+  const dejaInstallee = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const boutonsInstaller = [document.getElementById('btn-installer'), document.getElementById('gate-installer')];
+  function majInstall(){
+    boutonsInstaller.forEach(b => { if (b) b.hidden = !window.__evtInstall || dejaInstallee; });
+  }
+  window.__majInstall = majInstall;
+  boutonsInstaller.forEach(b => b && b.addEventListener('click', () => {
+    const evt = window.__evtInstall;
+    if (!evt) return;
+    evt.prompt();
+    evt.userChoice.finally(() => { window.__evtInstall = null; majInstall(); });
+  }));
+  window.addEventListener('appinstalled', () => { window.__evtInstall = null; majInstall(); });
+  majInstall();
+  if (!dejaInstallee && /iphone|ipad|ipod/i.test(navigator.userAgent)){
+    const astuceIos = document.getElementById('gate-ios');
+    if (astuceIos) astuceIos.hidden = false;
+  }
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  setInterval(() => {
+    if (!etat) return;
+    renderAlertesBloc();  // une question des 30 min apparait toute seule quand le temps est ecoule
+    majSupervision();     // pastilles de connexion, barre du bloc, resume de la salle
+    document.querySelectorAll('.poste[data-poste-id]').forEach(carte => {
+      const poste = trouverPoste(carte.dataset.posteId);
+      if (!poste || poste.statut === 'libre') return;
+      const etatTemps = etatMinuteur(poste);
+      if (etatTemps !== carte.dataset.minuteur){
+        // le minuteur change de phase (courant -> demande -> attente...) : on refait seulement cette carte
+        carte.replaceWith(creerCartePoste(poste));
+        if (etatTemps === 'demande') jouerBipMinuteur();
+        return;
+      }
+      const minuteur = affichageMinuteur(poste);
+      const chrono = carte.querySelector('.chrono');
+      if (chrono) chrono.textContent = minuteur.texte;
+      const legende = carte.querySelector('.chrono-legende');
+      if (legende) legende.textContent = minuteur.legende;
+      const rappel = carte.querySelector('.rappel-txt');
+      if (rappel) rappel.textContent = formatDuree(Math.ceil((poste.attenteJusqua - Date.now()) / 1000) * 1000);
+    });
+  }, 1000);
+
+  setInterval(() => {
+    if (etat) renderEcrans();
+  }, 3000);
+
+  // ===== Confort et securite des donnees =====
+  const VERSION_OUTIL = '2026-11-05';
+
+  // copie automatique sur cet appareil toutes les 5 minutes (a recharger via « Plus » si une manip efface tout)
+  function sauvegardeAuto(){
+    try{
+      if (!etat) return;
+      localStorage.setItem('2k27_sauvegarde_auto', JSON.stringify({ date: Date.now(), parties: historiqueComplet().length, etat }));
+    }catch(e){}
+  }
+
+  function restaurerSauvegardeAuto(){
+    let copie = null;
+    try{ copie = JSON.parse(localStorage.getItem('2k27_sauvegarde_auto') || 'null'); }catch(e){}
+    if (!copie || !copie.etat || !copie.etat.postes){ toast('Aucune copie automatique sur cet appareil'); return; }
+    if (!confirm(`Remplacer les données actuelles par la copie automatique du ${new Date(copie.date).toLocaleString('fr-FR')} (${copie.parties} partie(s)) ?`)) return;
+    etat = assainirEtat(copie.etat);
+    etat.tournois = normaliserTournois(etat.tournois);
+    sauvegarder();
+    render();
+    toast('↩ Copie automatique rechargée');
+  }
+
+  function majPied(){
+    const zone = document.getElementById('pied-infos');
+    if (!zone) return;
+    let copie = null;
+    try{ copie = JSON.parse(localStorage.getItem('2k27_sauvegarde_auto') || 'null'); }catch(e){}
+    zone.textContent = `Version ${VERSION_OUTIL}`
+      + (derniereSynchro ? ` · dernière mise à jour ${new Date(derniereSynchro).toLocaleTimeString('fr-FR')}` : '')
+      + (copie && copie.date ? ` · copie automatique de ${new Date(copie.date).toLocaleTimeString('fr-FR')}` : '');
+  }
+
+  function majHorsLigne(){
+    let b = document.getElementById('banniere-hors-ligne');
+    if (!navigator.onLine){
+      if (!b){
+        b = document.createElement('div');
+        b.id = 'banniere-hors-ligne';
+        b.className = 'banniere-hors-ligne';
+        b.setAttribute('role', 'alert');
+        b.textContent = '📶 Pas de connexion internet : les changements partiront dès que la connexion revient.';
+        document.body.prepend(b);
+      }
+    } else if (b){
+      b.remove();
+    }
+  }
+  window.addEventListener('online', majHorsLigne);
+  window.addEventListener('offline', majHorsLigne);
+  majHorsLigne();
+
+  // la tablette de l'animateur ne doit pas s'endormir pendant le festival
+  async function garderEcranAllume(){
+    try{
+      if ('wakeLock' in navigator && document.visibilityState === 'visible') await navigator.wakeLock.request('screen');
+    }catch(e){}
+  }
+  document.addEventListener('visibilitychange', garderEcranAllume);
+  garderEcranAllume();
+
+  function majBoutonMuet(){
+    const b = document.getElementById('btn-muet');
+    if (b) b.textContent = sonsCoupes() ? '🔕 Sons : coupés' : '🔔 Sons : activés';
+  }
+  document.getElementById('btn-muet').addEventListener('click', () => {
+    try{ localStorage.setItem('2k27_muet', sonsCoupes() ? 'non' : 'oui'); }catch(e){}
+    majBoutonMuet();
+    toast(sonsCoupes() ? '🔕 Sons coupés' : '🔔 Sons activés');
+  });
+  majBoutonMuet();
+  document.getElementById('btn-restaurer-auto').addEventListener('click', restaurerSauvegardeAuto);
+  document.getElementById('filtre-historique').addEventListener('input', renderHistorique);
+  document.addEventListener('keydown', e => {
+    // « / » : va directement a la recherche de l'historique (sauf quand on est deja en train de taper)
+    if (e.key === '/' && !e.ctrlKey && !e.altKey && !['INPUT', 'TEXTAREA', 'SELECT'].includes((document.activeElement || {}).tagName)){
+      e.preventDefault();
+      const champ = document.getElementById('filtre-historique');
+      champ.scrollIntoView({ block: 'center' });
+      champ.focus();
+    }
+  });
+  document.getElementById('hist-aujourdhui').addEventListener('change', renderHistorique);
+  setInterval(sauvegardeAuto, 5 * 60 * 1000);
+  setTimeout(sauvegardeAuto, 20000);
+  setInterval(majPied, 15000);
+
+  initEtat();
+})();
+</script>
+
+
+<script>
+  (function(){
+    var aide = document.getElementById('aide-gestion');
+    if (aide){
+      try{ if (localStorage.getItem('2k27_gestion_aide_ouverte') === 'non') aide.open = false; }catch(e){}
+      aide.addEventListener('toggle', function(){
+        try{ localStorage.setItem('2k27_gestion_aide_ouverte', aide.open ? 'oui' : 'non'); }catch(e){}
+      });
+    }
+    var menu = document.querySelector('.menu-plus');
+    if (menu){
+      menu.querySelectorAll('button').forEach(function(b){ b.addEventListener('click', function(){ menu.open = false; }); });
+      document.addEventListener('click', function(ev){ if (menu.open && !menu.contains(ev.target)) menu.open = false; });
+    }
+  })();
+</script>
+</body>
+</html>
